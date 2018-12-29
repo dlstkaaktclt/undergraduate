@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<list key="org.eclipse.ui.internal.wizards.datatransfer.SmartImportRootWizardPage.knownSources">
+		<item value="C:\algol\HW3 (1)\3. All Pairs Shortest Paths"/>
+		<item value="C:\algol\HW3 (1)\2. 최대신장트리"/>
+		<item value="C:\algol\HW3 (1)\1. DAG 최단경로"/>
+	</list>
+	<section name="NewWizardAction">
+		<item value="org.eclipse.jdt.ui.wizards.JavaProjectWizard" key="NewWizardSelectionPage.STORE_SELECTED_ID"/>
+		<list key="NewWizardSelectionPage.STORE_EXPANDED_CATEGORIES_ID">
+		</list>
+	</section>
+	<section name="SaveAsDialogSettings">
+		<item value="700" key="DIALOG_WIDTH"/>
+		<item value="1|맑은 고딕|9.0|0|WINDOWS|1|-18|0|0|0|400|0|0|0|1|0|0|0|0|맑은 고딕" key="DIALOG_FONT_NAME"/>
+		<item value="711" key="DIALOG_HEIGHT"/>
+		<item value="789" key="DIALOG_X_ORIGIN"/>
+		<item value="259" key="DIALOG_Y_ORIGIN"/>
+	</section>
+</section>

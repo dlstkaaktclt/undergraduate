@@ -1,0 +1,139 @@
+(* Public test case 8 : Recursive *)
+
+
+let proc f (x) = 
+  if (x < 1) then 0 else (x + f (x-1)) in
+write (f (10)); 
+let emptynode := unit in
+let proc makeNode (val,nextnode) = {value := val,next := nextnode} in 
+let proc isEmptyNode (node) = if (node = emptynode) then true else false in 
+let proc getNodevalue (node) = if (node = emptynode) then unit else node.value in
+let proc getNextNode (node) = node.next in 
+let myQueue := {head := emptynode,tail := emptynode} in
+let proc isEmptyQueue (queue) = if (queue.head = emptynode) then (if (queue.tail = emptynode) then true else false) else false in
+
+let proc popQueue (queue) = if (isEmptyQueue <queue>) then emptynode else
+							let h := queue.head.value in
+							let qh := queue.head in 
+							(queue.head := (getNextNode <qh>);
+							 (if (queue.head = emptynode) then queue.tail := emptynode
+							 else unit);
+							 h)
+							 in
+
+let proc insertQueue (queue,valu) = if (isEmptyQueue <queue>) then
+								(let n := makeNode <valu,emptynode> in 
+								 (queue.head := n;
+								 queue.tail := n);queue)
+								else
+								(let n := makeNode <valu,emptynode> in
+								 ((queue.tail).next := n);
+								   queue.tail := n) in 
+let emptytree := unit in 
+let proc leaf (n) = {value := n,isleaf := true} in
+let proc makeLtree (n,ltree) = {value := n,leftree := ltree, rightree := emptytree,isleaf:=false} in
+let proc makeRtree (n,rtree) = {value := n,leftree := emptytree, rightree := rtree,isleaf:=false} in
+let proc makeTree (n,ltree,rtree) = {value := n,leftree := ltree, rightree := rtree,isleaf:=false} in
+let proc isEmpty (tree) = if (tree = emptytree) then true else false in
+let proc rTree (tree) = tree.rightree in
+let proc lTree (tree) = tree.leftree in
+let proc nodeVal (tree) = tree.value in
+
+let proc dft (tree) = if (isEmpty <tree>) then unit
+					  else (if (tree.isleaf) then (write tree.value)
+                      else ((write tree.value);dft (tree.leftree);dft (tree.rightree))) in 
+
+let proc bftByQueue (queue) = let t:= popQueue <queue> in
+							(if (isEmpty <t>) then unit
+							else (if (t.isleaf) then write (t.value)
+								  else
+								  ( write (t.value);
+								    let lt := t.leftree in
+									let rt := t.rightree in
+									(
+								    insertQueue <queue,lt>;
+									insertQueue <queue,rt>;
+									bftByQueue <queue>;
+									bftByQueue <queue>
+									)
+								  )
+							)) in
+let proc bft (tree) = (insertQueue <myQueue,tree>);(bftByQueue <myQueue>) in
+let proc bftq (tree,queue) = (insertQueue <queue,tree>);(bftByQueue <queue>) in
+let proc bftnq (tree,queue) = (insertQueue (queue,tree));(bftByQueue (queue)) in
+(
+insertQueue (myQueue,4);
+insertQueue (myQueue,5);
+if (isEmpty (myQueue)) then write (1) else write (2)
+;
+write(popQueue (myQueue));
+write(popQueue (myQueue));
+let t := makeTree (3,makeTree (1,(leaf (8)),(leaf (4))),makeTree (7,(leaf (5)),(leaf (2)))) in
+dft (t);
+write (0);
+bft (t);
+bftq (t,{head := emptynode, tail := emptynode});
+bftnq (t,{head := emptynode, tail := emptynode})
+)
+(* Output : prints out "55\n" *)
+
+(*
+55 2 4 5 3 1 4 7 5 2
+0
+3 1 7 4 5 2 *)
+
+
+
+(*
+backup my code
+let emptynode := unit in
+let proc makeNode (val,nextnode) = {value := val,next := nextnode} in 
+let proc isEmptyNode (node) = if (node = emptynode) then true else false in 
+let proc getNodevalue (node) = if (node = emptynode) then unit else node.value in
+let proc getNextNode (node) = node.next in 
+let myQueue := {head := emptynode,tail := emptynode} in
+let proc isEmptyQueue (queue) = if (queue.head = emptynode) then (if (queue.tail = emptynode) then true else false) else false in
+
+let proc popQueue (queue) = if (isEmptyQueue (queue)) then emptynode else
+							let h := queue.head.value in
+							(queue.head := (getNextNode (queue.head));
+							 (if (queue.head = emptynode) then queue.tail := emptynode
+							 else unit);
+							 h)
+							 in
+
+let proc insertQueue (queue,valu) = if (isEmptyQueue (queue)) then
+								(let n := makeNode (valu,emptynode) in 
+								 (queue.head := n;
+								 queue.tail := n);queue)
+								else
+								(let n := makeNode (valu,emptynode) in
+								 ((queue.tail).next := n);
+								   queue.tail := n) in 
+let emptytree := unit in 
+let proc leaf (n) = {value := n,isleaf := true} in
+let proc makeLtree (n,ltree) = {value := n,leftree := ltree, rightree := emptytree,isleaf:=false} in
+let proc makeRtree (n,rtree) = {value := n,leftree := emptytree, rightree := rtree,isleaf:=false} in
+let proc makeTree (n,ltree,rtree) = {value := n,leftree := ltree, rightree := rtree,isleaf:=false} in
+let proc isEmpty (tree) = if (tree = emptytree) then true else false in
+let proc rTree (tree) = tree.rightree in
+let proc lTree (tree) = tree.leftree in
+let proc nodeVal (tree) = tree.value in
+let proc dft (tree) = if (isEmpty (tree)) then unit
+					  else (if (tree.isleaf) then (write tree.value)
+                      else ((write tree.value);dft (tree.leftree);dft (tree.rightree))) in 
+
+let proc bftByQueue (queue) = let t:= popQueue (queue) in
+							(if (isEmpty (t)) then unit
+							else (if (t.isleaf) then write (t.value)
+								  else
+								  ( write (t.value);
+								    insertQueue (queue,t.leftree);
+									insertQueue (queue,t.rightree);
+									bftByQueue (queue);
+									bftByQueue (queue)
+								  )
+							)) in
+let proc bft (tree) = (insertQueue (myQueue,tree));(bftByQueue (myQueue)) in 2018
+
+*)

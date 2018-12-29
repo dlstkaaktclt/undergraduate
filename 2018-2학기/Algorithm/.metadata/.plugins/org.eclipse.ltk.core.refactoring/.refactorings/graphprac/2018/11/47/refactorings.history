@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring accessors="true" comment="Delete 4 elements from project &apos;graphprac&apos;&#x0D;&#x0A;- Original project: &apos;graphprac&apos;&#x0D;&#x0A;- Original elements:&#x0D;&#x0A;     graphprac.Solution1.java&#x0D;&#x0A;     1. DAG 최단경로.pdf&#x0D;&#x0A;     answer1.txt&#x0D;&#x0A;     input1.txt" description="Delete elements" element1="src/graphprac/input1.txt" element2="src/graphprac/1. DAG 최단경로.pdf" element3="src/graphprac/answer1.txt" element4="/src&lt;graphprac{Solution1.java" elements="1" flags="589830" id="org.eclipse.jdt.ui.delete" resources="3" stamp="1542763648331" subPackages="false" version="1.0"/>
+</session>

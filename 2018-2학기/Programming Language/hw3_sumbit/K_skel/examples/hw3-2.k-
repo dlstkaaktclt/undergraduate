@@ -1,0 +1,28 @@
+(* Public test case 1 *)
+
+
+
+
+let proc numch1 (n) = if n<0 then 0 else 1 in
+let proc numch10 (n) = if n<10 then numch1 (n) else (numch10 (n-10)) + numch1(n) in
+let proc numch100 (n) = if n<100 then numch10 (n) else (numch100 (n-100)) + (numch10 (n)) in
+let proc numch500 (n) = if n<500 then numch100 (n) else (numch500 (n-500)) + (numch100 (n)) in
+let proc numch1000 (n) = if n<1000 then numch500 (n) else (numch1000 (n-1000)) + (numch500 (n)) in
+let proc numch5000 (n) = if n<5000 then numch1000 (n) else (numch5000 (n-5000)) + (numch1000 (n)) in
+let proc numch10000 (n) = if n<10000 then numch5000 (n) else (numch10000 (n-10000)) + (numch5000 (n)) in
+let proc numch50000 (n) = if n<50000 then numch10000 (n) else (numch50000 (n-50000)) + (numch10000 (n)) in
+let proc numch (n) = if n<1 then 0
+		   else if n<10 then numch1 (n)
+		   else if n<100 then numch10 (n)
+		   else if n<500 then numch100 (n)
+		   else if n<1000 then numch500 (n)
+		   else if n<5000 then numch1000 (n)
+		   else if n<10000 then numch5000 (n)
+		   else if n<50000 then numch10000 (n)
+		   else numch50000 (n)
+in 
+let input := 0 in 
+read input; 
+write (numch(input))
+
+(* Output : prints out "3\n" *)
