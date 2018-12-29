@@ -1,0 +1,14 @@
+
+nifun.o:     file format elf32-i386
+
+
+Disassembly of section .text:
+
+00000000 <.text>:
+   0:	89 e1                	mov    %esp,%ecx
+   2:	83 c1 28             	add    $0x28,%ecx
+   5:	89 cd                	mov    %ecx,%ebp
+   7:	68 d1 8d 04 08       	push   $0x8048dd1
+   c:	b9 28 d1 04 08       	mov    $0x804d128,%ecx
+  11:	8b 01                	mov    (%ecx),%eax
+  13:	c3                   	ret    

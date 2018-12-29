@@ -1,0 +1,140 @@
+08048e4c <test>:
+ 8048e4c:	55                   	push   %ebp
+ 8048e4d:	89 e5                	mov    %esp,%ebp
+ 8048e4f:	83 ec 28             	sub    $0x28,%esp
+ 8048e52:	e8 db ff ff ff       	call   8048e32 <uniqueval>
+ 8048e57:	89 45 f0             	mov    %eax,-0x10(%ebp)
+ 8048e5a:	8d 45 f4             	lea    -0xc(%ebp),%eax
+ 8048e5d:	89 04 24             	mov    %eax,(%esp)
+ 8048e60:	e8 17 ff ff ff       	call   8048d7c <getbuf>
+ 8048e65:	e8 c8 ff ff ff       	call   8048e32 <uniqueval>
+ 8048e6a:	8b 55 f0             	mov    -0x10(%ebp),%edx
+ 8048e6d:	39 d0                	cmp    %edx,%eax
+ 8048e6f:	74 0e                	je     8048e7f <test+0x33>
+ 8048e71:	c7 04 24 dc a1 04 08 	movl   $0x804a1dc,(%esp)
+ 8048e78:	e8 f3 f9 ff ff       	call   8048870 <puts@plt>
+ 8048e7d:	eb 49                	jmp    8048ec8 <test+0x7c>
+ 8048e7f:	8b 45 f4             	mov    -0xc(%ebp),%eax
+ 8048e82:	3b 05 28 d1 04 08    	cmp    0x804d128,%eax
+ 8048e88:	75 26                	jne    8048eb0 <test+0x64>
+ 8048e8a:	89 44 24 08          	mov    %eax,0x8(%esp)
+ 8048e8e:	c7 44 24 04 54 a3 04 	movl   $0x804a354,0x4(%esp)
+ 8048e95:	08 
+ 8048e96:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
+ 8048e9d:	e8 9e fa ff ff       	call   8048940 <__printf_chk@plt>
+ 8048ea2:	c7 04 24 03 00 00 00 	movl   $0x3,(%esp)
+ 8048ea9:	e8 d6 03 00 00       	call   8049284 <validate>
+ 8048eae:	eb 18                	jmp    8048ec8 <test+0x7c>
+ 8048eb0:	89 44 24 08          	mov    %eax,0x8(%esp)
+ 8048eb4:	c7 44 24 04 71 a3 04 	movl   $0x804a371,0x4(%esp)
+ 8048ebb:	08 
+ 8048ebc:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
+ 8048ec3:	e8 78 fa ff ff       	call   8048940 <__printf_chk@plt>
+ 8048ec8:	c9                   	leave  
+ 8048ec9:	c3                   	ret    
+ 
+08048d7c <getbuf>:
+ 8048d7c:	55                   	push   %ebp
+ 8048d7d:	89 e5                	mov    %esp,%ebp
+ 8048d7f:	53                   	push   %ebx
+ 8048d80:	83 ec 44             	sub    $0x44,%esp
+ 8048d83:	8b 5d 08             	mov    0x8(%ebp),%ebx
+ 8048d86:	8d 45 d0             	lea    -0x30(%ebp),%eax
+ 8048d89:	89 04 24             	mov    %eax,(%esp)
+ 8048d8c:	e8 55 ff ff ff       	call   8048ce6 <Gets>
+ 8048d91:	85 db                	test   %ebx,%ebx
+ 8048d93:	74 06                	je     8048d9b <getbuf+0x1f>
+ 8048d95:	c7 03 01 00 00 00    	movl   $0x1,(%ebx)
+ 8048d9b:	83 c4 44             	add    $0x44,%esp
+ 8048d9e:	5b                   	pop    %ebx
+ 8048d9f:	5d                   	pop    %ebp
+ 8048da0:	c3                   	ret    
+ 
+ 
+test
+ 
+eax            0xc	12
+ecx            0xc	12
+edx            0xf7fc5ad0	-134456624
+ebx            0x0	0
+esp            0x55683e28	0x55683e28 <_reserved+1039912>
+ebp            0x55683e50	0x55683e50 <_reserved+1039952>
+esi            0x55686420	1432904736
+edi            0x1	1
+eip            0x8048e52	0x8048e52 <test+6>
+
+
+
+getbuf
+
+eax            0x55683e44	1432895044
+ecx            0x7a0e28ef	2047748335
+edx            0xf7fc4424	-134462428
+ebx            0x0	0
+esp            0x55683e1c	0x55683e1c <_reserved+1039900>
+ebp            0x55683e20	0x55683e20 <_reserved+1039904>
+esi            0x55686420	1432904736
+edi            0x1	1
+eip            0x8048d80	0x8048d80 <getbuf+4>
+
+ebp - 0x30 = 0x55683df0
+
+ 0x55683e1c - 0x44
+ 0x55683dd8
+ 
+testn
+
+eax            0xc	12
+ecx            0xc	12
+edx            0xf7fc5ad0	-134456624
+ebx            0x1	1
+esp            0x55683e28	0x55683e28 <_reserved+1039912>
+ebp            0x55683e50	0x55683e50 <_reserved+1039952>
+esi            0x55686420	1432904736
+edi            0x5	5
+eip            0x8048dc5	0x8048dc5 <testn+6>
+eflags         0x216	[ PF AF IF ]
+cs             0x23	35
+ss             0x2b	43
+ds             0x2b	43
+es             0x2b	43
+fs             0x0	0
+gs             0x63	99
+
+eax            0xc	12
+ecx            0xc	12
+edx            0xf7fc5ad0	-134456624
+ebx            0x1	1
+esp            0x55683e28	0x55683e28 <_reserved+1039912>
+ebp            0x55683e50	0x55683e50 <_reserved+1039952>
+esi            0x55686420	1432904736
+edi            0x5	5
+eip            0x8048dc5	0x8048dc5 <testn+6>
+eflags         0x216	[ PF AF IF ]
+cs             0x23	35
+ss             0x2b	43
+ds             0x2b	43
+es             0x2b	43
+fs             0x0	0
+gs             0x63	99
+
+getbufn
+
+eax            0xc	12
+ecx            0xc	12
+edx            0xf7fc5ad0	-134456624
+ebx            0x1	1
+esp            0x55683c08	0x55683c08 <_reserved+1039368>
+ebp            0x55683e20	0x55683e20 <_reserved+1039904>
+esi            0x55686420	1432904736
+edi            0x5	5
+eip            0x8048daa	0x8048daa <getbufn+9>
+eflags         0x212	[ AF IF ]
+cs             0x23	35
+ss             0x2b	43
+ds             0x2b	43
+es             0x2b	43
+fs             0x0	0
+gs             0x63	99
+
+

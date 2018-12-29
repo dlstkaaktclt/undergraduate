@@ -1,0 +1,14 @@
+
+tt.o:     file format elf32-i386
+
+
+Disassembly of section .text:
+
+00000000 <.text>:
+   0:	b9 04 34 68 55       	mov    $0x55683404,%ecx
+   5:	ba b1 8d 51 23       	mov    $0x23518db1,%edx
+   a:	89 11                	mov    %edx,(%ecx)
+   c:	83 c4 fc             	add    $0xfffffffc,%esp
+   f:	b9 65 8e 04 08       	mov    $0x8048e65,%ecx
+  14:	89 0c 24             	mov    %ecx,(%esp)
+  17:	c3                   	ret    

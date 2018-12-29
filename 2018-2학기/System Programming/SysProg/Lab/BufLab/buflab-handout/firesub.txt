@@ -1,0 +1,14 @@
+
+fire.o:     file format elf32-i386
+
+
+Disassembly of section .text:
+
+00000000 <main>:
+   0:	55                   	push   %ebp
+   1:	89 e5                	mov    %esp,%ebp
+   3:	c7 05 00 00 00 00 b1 	movl   $0x8db1,0x0
+   a:	8d 00 00 
+   d:	b8 00 00 00 00       	mov    $0x0,%eax
+  12:	5d                   	pop    %ebp
+  13:	c3                   	ret    
