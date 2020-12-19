@@ -1,0 +1,388 @@
+\documentclass{article}
+\usepackage{bm}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{mdwlist}
+\usepackage[colorlinks=true]{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+\geometry{headheight=2in}
+\geometry{top=2in}
+\usepackage{palatino}
+%\renewcommand{\rmdefault}{palatino}
+\usepackage{fancyhdr}
+\usepackage{kotex}
+%\pagestyle{fancy}
+\rhead{}
+\lhead{}
+\chead{%
+  {\vbox{%
+      \vspace{2mm}
+      \large
+      실험 계획 및 실습
+      \\[4mm]
+      Homework \#(\textbf{5})\\
+      \textbf{2014-16757 김보창}
+    }
+  }
+}
+\graphicspath{
+    {C:/image/}
+}
+
+% for image start
+\newlength{\textundbildtextheight}
+ 
+\newcommand{\textundbild}[2]{
+\settototalheight\textundbildtextheight{\vbox{#1}}
+#1
+\vfill
+\begin{center}
+\includegraphics[width=\textwidth,keepaspectratio=true,height=\textheight-\the\textundbildtextheight]{#2}
+\end{center}
+\vfill
+}
+% for image end
+
+% for image start
+ 
+\newcommand{\printimage}[1]{
+\vfill
+\begin{center}
+\includegraphics[width=\textwidth,keepaspectratio=true,height=\textheight-\the\textundbildtextheight]{#1}
+\end{center}
+\vfill
+}
+% for image end
+
+\usepackage[svgnames]{xcolor}
+\usepackage{listings}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\lstset{ 
+  language=R,                     % the language of the code
+  basicstyle=\ttfamily, % the size of the fonts that are used for the code
+  numbers=left,                   % where to put the line-numbers
+  numberstyle=\tiny\color{blue},  % the style that is used for the line-numbers
+  stepnumber=1,                   % the step between two line-numbers. If it is 1, each line
+                                  % will be numbered
+  numbersep=5pt,                  % how far the line-numbers are from the code
+  backgroundcolor=\color{white},  % choose the background color. You must add \usepackage{color}
+  showspaces=false,               % show spaces adding particular underscores
+  showstringspaces=false,         % underline spaces within strings
+  showtabs=false,                 % show tabs within strings adding particular underscores
+  frame=single,                   % adds a frame around the code
+  rulecolor=\color{black},        % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. commens (green here))
+  tabsize=2,                      % sets default tabsize to 2 spaces
+  captionpos=b,                   % sets the caption-position to bottom
+  breaklines=true,                % sets automatic line breaking
+  breakatwhitespace=false,        % sets if automatic breaks should only happen at whitespace
+  keywordstyle=\color{RoyalBlue},      % keyword style
+  commentstyle=\color{YellowGreen},   % comment style
+  stringstyle=\color{ForestGreen}      % string literal style
+} 
+
+
+\usepackage{paralist}
+\usepackage{todonotes}
+\setlength{\marginparwidth}{2.15cm}
+
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes,backgrounds}
+
+\begin{document}
+\pagestyle{fancy}
+
+
+%% Q1
+\section{Q1} 
+
+14.18
+
+$y_{ijkl}$을 strength라 하면, heat는 vendor마다 다르므로, nested design을 사용해야 한다. 즉, heat은 vendor에 nested된다.
+
+따라서 $\tau$를 bar size, $\beta$를 vendor, $\gamma$를 heat이라 하면,
+
+모형은 다음과 같다. 
+$y_{ijkl} = \mu + \tau_i + \beta_j + \gamma_{k(j)} + (\tau \beta)_{ij} +  (\tau \gamma)_{ik(j)} +  \epsilon_{ijkl}$, $i = 1,2.. a$, $j = 1, .. b$ ,  $k = 1, ...c $, $l = 1, .. n$ 이고,
+
+a = 3, b = 3, c = 3, n = 2이다.
+
+14.16의 경우, $\tau$, $\beta$가 fixed, $\gamma$가 random이므로, restricted form에서 조건은 다음과 같다.
+
+$\sum_{i=1}^a \tau_i = 0 $, $\sum_{j=1}^b \beta_j = 0 $,  $\gamma_{k(j)} \overset{\text{i.i.d.}}{\sim} N(0, \sigma_{\gamma}^2)$ \\
+
+$\sum_{i=1}^a (\tau \beta)_{ij} = 0$, $\sum_{j=1}^b (\tau \beta)_{ij} = 0$,\\
+
+$\sum_{i=1}^a (\tau \gamma)_{ik(j)} = 0$,   
+$(\tau \gamma)_{ik(j)} \overset{\text{indep for k,j}}{\sim} N(0, \frac{a-1}{a}\sigma_{\tau \gamma}^2)$,
+$Cov( (\tau \gamma)_{ik(j)}, (\tau \gamma)_{i'k(j)}) = -\frac{1}{a} \sigma_{\tau \gamma}^2, (i \neq i')$
+$\epsilon_{ijkl}  \overset{\text{i.i.d.}}{\sim} N(0, \sigma^2)$
+
+위의 모형에서, EMS 결과와 그에 따른 $F_0$의 값은 다음과 같다.
+
+
+\printimage{hw5_1_14-16_EMS.jpg}
+
+
+
+14.18의 경우, $\beta$가 fixed, $\tau$, $\gamma$가 random이므로, restricted form에서 조건은 다음과 같다.
+
+$\tau_{i} \overset{\text{i.i.d.}}{\sim} N(0, \sigma_{\tau}^2)$, $\sum_{j=1}^b \beta_j = 0 $,  $\gamma_{k(j)} \overset{\text{i.i.d.}}{\sim} N(0, \sigma_{\gamma}^2)$ \\
+
+$\sum_{j=1}^b (\tau \beta)_{ij} = 0$, $(\tau \beta)_{ij} \overset{\text{indep for i}}{\sim} N(0, \frac{b-1}{b}\sigma_{\tau \beta}^2)$,
+$Cov( (\tau \beta)_{ij}, (\tau \beta)_{ij'}) = -\frac{1}{b} \sigma_{\tau \beta}^2, (j \neq j')$\\
+
+$(\tau \gamma)_{ik(j)} \overset{\text{i.i.d}}{\sim} N(0, \sigma_{\tau \gamma}^2)$
+$\epsilon_{ijkl}  \overset{\text{i.i.d.}}{\sim} N(0, \sigma^2)$
+
+
+이에 해당하는 EMS와, 각 $H_0$에 해당하는 $F_0$는 다음과 같다.
+
+\printimage{hw5_1_14-18_EMS.jpg}
+
+
+이제, 14.18 문제에서 각 귀무가설에 대해 test를 해보자.
+
+유의수준 $\alpha$에서 $F_0 > F_{df1, df2}(\alpha)$이면 귀무가설을 기각할 것이다.
+
+이를 구하기 위해 $F_0$의 값을 구할것인데, 계산을 쉽게 하기 위해 R을 이용할 것이다.
+
+다음 R코드를 이용하여 $F_0$의 값을 구한다.
+
+
+
+\begin{lstlisting}[language=R]
+library(EMSaov) # install.packages("EMSaov")
+y <- c(1.230, 1.259, 1.346, 1.400, 1.235, 1.206, 1.316, 1.300, 1.329, 1.362, 1.250, 1.239, 1.287, 1.292, 1.346, 1.382, 1.273, 1.215, 1.301, 1.263, 1.346, 1.392, 1.315, 1.320, 1.274, 1.268, 1.384, 1.375, 1.346, 1.357, 1.247, 1.215, 1.362, 1.328, 1.336, 1.342, 1.247, 1.296, 1.275, 1.268, 1.324, 1.315, 1.273, 1.264, 1.260, 1.265, 1.392, 1.364, 1.301, 1.262, 1.280, 1.271, 1.319, 1.323)
+vendor <- as.factor(c(rep(1, 18), rep(2, 18), rep(3, 18)))
+bar <- as.factor(rep(c(rep(1,6), rep(1.5,6), rep(2,6)), 3))
+heat <- as.factor(rep(c(rep(1,2), rep(2,2), rep(3,2)), 9))
+df <- data.frame(vendor, bar,  heat, y)
+
+res <- EMSanova(y ~ bar + vendor + heat, data = df, type = c("R", "F", "R"), nested = c(NA, NA, "vendor"))
+res
+\end{lstlisting}
+
+위 코드를 실행한 결과는 다음과 같다.
+
+
+\begin{center}
+    \includegraphics{hw5_1_df.jpg}
+df 내부의 값들.
+\end{center} 
+
+\begin{center}
+    \includegraphics{hw5_1_14-18_res.jpg}
+F-test와 EMS 결과.
+\end{center} 
+
+EMS로 우리가 구한 값과 같은 결과가 나왔음을 알 수 있고,
+
+각 P-value의 값들을 통해, 유의수준 0.05에서 $\gamma$, $\tau \gamma$에 대한 귀무가설을 기각할 수 있음을 알 수 있다.
+
+즉, $H_0 : \sigma^2_{\gamma} = 0$, $H_0 : \sigma^2_{\tau \gamma} = 0$인 두 귀무가설이 기각된다.
+
+즉, heat에 의한 effect와 bar size, heat과의 interaction efffect 가 존재함을 알 수 있다.
+
+vendor에 대한 귀무가설을 제외한 다른 귀무가설은 기각할 수 없다.
+
+또한, F-test 결과를 보면, vendor에 대한 결과는 나오지 않았음을 알 수 있는데, 이는 앞에서 서술했듯이,
+
+vendor에 대한 F-test는 approximate test라 이에 해당하는 결과가 나오지 않았다.
+
+이에 대한 approximate-test를 하기 위해, $\alpha = 0.05$에 해당되는, $F_{p,q}$의 값을 구하고, 이를 vendor에 해당하는 근사-$F_0$값과 비교해보자.
+
+\begin{lstlisting}[language=R]
+MSB <- 0.044242963
+MSAC_B <- 0.0009191944
+MSAB <- 0.0005938519
+MSC_B <- 0.0167015556
+
+p <- (MSB + MSAC_B)^2/((MSB^2)/(3-1) + (MSAC_B^2)/(3*2*2))
+q <- (MSAB + MSC_B)^2/((MSAB^2)/(2*2) + (MSC_B^2)/(3*2))
+approx_F <- (MSB + MSAC_B)/(MSAB + MSC_B)
+p
+q
+F_val <- qf(0.95,p,q)
+approx_F
+F_val
+approx_F > F_val
+\end{lstlisting}
+
+위 코드의 결과는 다음과 같다.
+
+\begin{center}
+    \includegraphics{hw5_1_14-18_res_2.jpg}
+근사- F-test 값과 비교
+\end{center} 
+
+이때, $F_0 > F_{p,q}(\alpha)$ 가 성립하지 않으므로, 근사 F-test에서는 vendor에 대한 $H_0$을 기각할 수 없다.
+
+
+
+
+마찬가지로, 14.16에서의 테스트는 14.18에서 bar effect만 fixed 된것이므로, 다음과 같이 진행하면 된다.
+
+
+\begin{lstlisting}[language=R]
+res2 <- EMSanova(y ~ bar + vendor + heat, data = df, type = c("F", "F", "R"), nested = c(NA, NA, "vendor"))
+res2
+\end{lstlisting}
+
+\begin{center}
+    \includegraphics{hw5_1_14-18_res_3.jpg}
+14.16의 테스트 결과.
+\end{center} 
+
+각 P-value의 값들을 통해, 유의수준 0.05에서 $\gamma$, $\tau \gamma$에 대한 귀무가설을 기각할 수 있고, 나머지는 기각할 수 없음을 알 수 있다.
+
+즉, heat에 의한 effect와 bar size, heat과의 interaction efffect 가 존재함을 알 수 있다.
+
+
+
+\section{Q2} 
+
+15.17
+
+
+$y_{ij}$를 amount of removed metal이라 하면, 모형은 다음과 같다.
+
+$\tau_i$를 cutting speed effect, $x_{ij}$를 hardness of the specimen, $\beta$를 y와 x간의 regression coeffecient라 하면
+
+모형은 다음과 같다. 
+$y_{ij} = \mu + \tau_i + \beta(x_{ij} - \bar{x_{..}}) +  \epsilon_{ij}$, $i = 1,2.. a$, $j = 1, .. n$ 이고,
+
+a = 3, n = 5 이다.
+
+주어진 데이터를 ancova를 이용하여 분석해보자.
+
+데이터를 분석하기 위해, treatment effect와, hardness에 의한 effect의 효과에 따라 다음과 같은 가설을 세워 ANACOVA test를 진행한다.
+
+$$H_{0\tau} :  \tau_i = 0, \forall i = 1, 2, 3$$ 
+$$H_{1\tau} :  \tau_i \neq 0, \exists i$$ 
+
+$$H_{0\beta} :  \beta = 0$$ 
+$$H_{1\beta} :  \beta \neq 0$$ 
+로 귀무가설과 대립가설을 세우고, ANACOVA test를 진행하자.
+
+이때, $H_{0\tau}$ 하에서 
+
+$$F_{0\tau}=\frac{S S_{E(\text { reduced } \tau)}-S S_{E(f u l l)} /(a-1)}{S S_{E(f u l l)} / a(n-1)-1} \sim  F_{a-1, a(n-1) - 1}$$,
+$H_{0\beta}$ 하에서
+$$F_{0\beta}=\frac{S S_{E(\text { reduced } \beta)}-S S_{E(f u l l)} /1}{S S_{E(f u l l)} / a(n-1)-1} \sim  F_{1, a(n-1) - 1}$$ 을 따름을 알고,
+
+$SS_{E(\text { reduced } \tau)}$ 를 구하기 위한 reduced 모델은
+$$y_{ij} = \mu +  \beta(x_{ij} - \bar{x_{..}}) +  \epsilon_{ij} = \alpha + \beta(x_{ij}) + \epsilon_{ij}$$
+($\mu - \beta \bar{x_{..}} = \alpha$)에서, 이는 simple linear regression case와 같으므로,
+
+
+여기에서  $SS_{E(\text { reduced } \tau )} = \sum_{i=1}^a \sum_{j=1}^n (y_{ij} - \hat{\alpha} - \hat{\beta}x_{ij})^2$
+
+에서, $\bar{y_{..}} = \hat{\alpha} + \bar{x_{..}} \hat{\beta}, \hat{\beta} = \frac{S_{xy}}{S_{xx}}$ 임을 아므로,
+
+$SS_{E(\text{ reduced } \tau)}  = \sum_{i=1}^a \sum_{j=1}^n (y_{ij} - \bar{y_{..}} -  \frac{S_{xy}}{S_{xx}}(x_{ij} - \bar{x_{..}}))^2$ 임을 안다.
+
+이때, $SS_{xy} = \sum_{i=1}^a \sum_{j=1}^n y_{ij}(x_{ij} - \bar{x}),SS_{xx} = \sum_{i=1}^a \sum_{j=1}^n (x_{ij} - \bar{x_{..}}) ^2$.
+
+또한, 
+
+$SS_{E(\text { reduced} \beta )}$ 를 구하기 위핸 reduced 모델은
+$y_{ij} = \mu + \tau_i + \epsilon_{ij}$ 에서,
+$SS_{E(\text { reduced } \beta)} = \sum_{i=1}^a \sum_{j=1}^n (y_{ij} - \bar{y_{i.}})^2$
+
+임을 안다.
+
+
+따라서, 유의수준 $\alpha = 0.05$에서 $F_0 > F_{df1, df2}(\alpha)$이면 각 귀무가설을 기각할 것이다.
+
+이를 구하기 위해 $F_0$의 값을 구할것인데, 계산을 쉽게 하기 위해 R을 이용할 것이다.
+
+다음 R코드를 이용하여 $F_0$의 값을 구한다.
+
+
+\begin{lstlisting}[language=R]
+y <- c(68, 90, 98, 77, 88, 112, 94, 65, 74, 85, 118, 82, 73, 92, 80)
+x <- c(120, 140, 150, 125, 136, 165, 140, 120, 125, 133, 175, 132, 124, 141, 130)
+cut_speed <- as.factor(c(rep(1000, 5), rep(1200, 5), rep(1400, 5)))
+df2 <- data.frame(cut_speed, x, y)
+df2 
+res_full <- aov(y ~ x + cut_speed ,data = df2)
+summary(res_full)
+res_tau <- aov(y ~ x ,data = df2)
+summary(res_tau)
+res_beta <- aov(y ~ cut_speed ,data = df2)
+summary(res_beta)
+\end{lstlisting}
+
+\begin{center}
+    \includegraphics{hw5_2_res_full.jpg}
+위의 실행 결과.
+\end{center} 
+
+$SS_{E(\text { full})} = 95.5$, $SS_{E(\text { reduced } \tau)} = 97.9$, $SS_{E(\text { reduced } \beta)} = 3114.8$  임을 알 수 있다.
+
+따라서 각 $H_0$를 test하기 위해, 다음과 같이 코드를 짜자.
+
+\begin{lstlisting}[language=R]
+SSE_full = 95.5
+SSE_reduce_tau = 97.9
+SSE_reduce_beta = 3114.8
+
+F_0_tau <- ((SSE_reduce_tau - SSE_full)/(3-1)) / (SSE_full/(3*4 - 1))
+F_0_beta <- ((SSE_reduce_beta - SSE_full)/(1)) / (SSE_full/(3*4 - 1))
+
+F_val_tau <- qf(0.95,2,11)
+F_val_beta <- qf(0.95,1,11)
+
+F_0_tau
+F_0_beta
+F_val_tau
+F_val_beta
+
+F_0_tau > F_val_tau
+F_0_beta > F_val_beta
+\end{lstlisting}
+
+\begin{center}
+    \includegraphics{hw5_2_res_F.jpg}
+위의 실행 결과.
+\end{center} 
+
+결과적으로, $F_{0\tau}> F_{2, 11}(\alpha)$가 성립하지 않으므로, $H_{0\tau}$는 기각할 수 없고,
+
+$F_{0\beta}> F_{1, 11}(\alpha)$가 성립하므로, $H_{0\beta}$를 기각할 수 있음을 알 수 있다.
+
+즉, hardness에 의한 effect가 존재함을 알 수 있다.
+
+
+
+
+
+
+\end{document}

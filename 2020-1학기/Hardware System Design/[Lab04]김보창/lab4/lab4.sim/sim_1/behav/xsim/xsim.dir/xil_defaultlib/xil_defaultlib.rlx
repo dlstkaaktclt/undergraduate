@@ -1,0 +1,10 @@
+0.6
+2018.3
+Dec  7 2018
+00:33:28
+C:/Users/plantain/Desktop/hsd/lab4/lab4.sim/sim_1/behav/xsim/glbl.v,1544155481,verilog,,,,glbl,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab4/lab4.srcs/sim_1/new/tb_adder_array.v,1585915325,verilog,,,,tb_adder_array,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab4/lab4.srcs/sources_1/imports/new/my_add.v,1585218887,verilog,,C:/Users/plantain/Desktop/hsd/lab4/lab4.srcs/sim_1/new/tb_adder_array.v,,my_add,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab4/lab4.srcs/sources_1/ip/floating_point_MAC/sim/floating_point_MAC.vhd,1585896039,vhdl,,,,floating_point_mac,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab4/lab4.srcs/sources_1/new/adder_array.v,1585913610,verilog,,C:/Users/plantain/Desktop/hsd/lab4/lab4.srcs/sources_1/imports/new/my_add.v,,adder_array,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab4/lab4.srcs/sources_1/new/tb_lab4.v,1585895901,verilog,,,,tb_lab4,,,,,,,,

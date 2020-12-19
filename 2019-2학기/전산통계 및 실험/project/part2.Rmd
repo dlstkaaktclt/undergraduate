@@ -1,0 +1,376 @@
+---
+title: '326.212 Final Project: Part 2'
+output: html_document
+---
+
+## 2014-16757 김보창
+
+```{r}
+library(RSQLite)
+library(tidyverse)
+library(lubridate)
+con <- dbConnect(SQLite(), "project.sqlite")
+```
+
+rm()을 이용해, 사용이 끝난 데이터는 메모리에서 해제하여 메모리 공간을 최대한 확보해주었다.
+
+## Part 2. Basic Questions (150 pts)
+
+### Q1. Monthly traffic in three airports (60 pts)
+
+#### Q1-1
+
+airports csv 파일에는 colname에 해당하는 행이 없었기 때문에,
+
+airports csv 파일의 출처인 https://github.com/jpatokal/openflights/tree/master/data
+의 README를 통해
+
+https://openflights.org/data.html 와 같은 데이터가 담겨 있음을 알 수 있었고,
+
+이를 이용하여 column name을 정하였다.
+
+
+
+airports 테이블에서, "SNA", "SJC", "SMF"에 해당하는 코드를 가지는 공항을 찾아내면 된다.
+
+이때, airports에는 IATA 코드와 ICAO 코드가 같이 들어있는데,
+
+IATA 코드는 3자리, ICAO 코드는 4자리이므로, 위 코드와 같은 코드를 가지는 공항을 찾으려면 IATA 코드가 위 코드와 같은 공항을 찾으면 된다.
+
+이를 찾기위해, part 1에서 만든 데이터베이스에 접근해서 관련 데이터를 받아와야 하는데,
+
+collect와 tbl을 이용해서 데이터베이스의 테이블을 다음과 같이 받아올 수 있다.
+
+
+```{r}
+airports <- collect(tbl(con, "airports"))
+```
+
+그 뒤, filter 명령어를 이용해 "SNA", "SJC", "SMF" IATA 코드를 가지는 공항에 대한 데이터를 찾을 수 있다. 
+
+```{r}
+Q1_1 <- airports %>%
+ filter(IATA == "SNA" | IATA == "SJC" | IATA == "SMF")
+
+Q1_1
+```
+
+
+이 공항들의 이름은 다음과 같다.
+
+```{r}
+airports_name <- select(Q1_1, Name, IATA)
+
+airports_name
+```
+
+
+
+#### Q1-2
+
+위에서 찾은 세가지 이름을 가지는 공항들이 목적지인 flight들의 개수를 월단위로 저장한 airportcounts data frame을 생성하면 된다.
+
+
+```{r}
+flights <- tbl(con, "flights")
+
+flights_query <- flights %>% 
+    filter(Dest %in% c("SNA", "SJC", "SMF")) %>% 
+    group_by(Year, Month, Dest) %>% 
+    summarise(flights_count = n())
+
+airportcounts <- collect(flights_query)
+
+airportcounts <- left_join(airportcounts, airports_name, by = c("Dest" = "IATA"))
+
+airportcounts
+```
+
+collect(tbl(con, "flights"))로 r 프로그램으로 바로 테이블을 불러오는것은 데이터가 너무나 크기 때문에, 바람직한 방법이 아니다.
+(메모리가 매우 많이 필요할것이다.)
+
+따라서 위와같이 flights_query 변수에 데이터베이스 단위에서 실행할 연산을 먼저 지정해 준 다음 collect 함수에 인자로 주어,
+
+전체 데이터를 불러오지 않고도 필요한 부분을 airportcounts data frame으로 구해오게 하였다.
+
+
+그 후, 앞에서 구한 공항 이름과 left join을 통해 각 공항별 이름을 표기하게 하였다.
+
+
+
+#### Q1-3
+
+
+이제 새로운 Date column을 airportcounts에 추가하자.
+
+Year와 Month를 이용하여, Date column을 만들면 되므로,
+
+이를 만들기 위해 lubridate의 make_date 함수를 사용한다.
+
+그 후, Date의 오름차순으로 정렬하여 주었다.
+
+(일 정보가 없어서, 모두 1일로 설정되었다)
+
+
+```{r}
+airportcounts <- airportcounts %>% 
+    mutate(Date = make_date(Year, Month)) %>% 
+    arrange(Date)
+
+airportcounts
+```
+
+위와 같이 결과가 나옴을 알 수 있다.
+
+
+#### Q1-4
+
+이제, 각 공항에 대해 시간순서별로 이 세 공항에 대한 flights 개수를 plotting 하면 다음과 같다.
+
+```{r}
+ggplot(data = airportcounts, mapping = aes(x = Date, y = flights_count, color = Name)) + geom_point() + geom_smooth(se = FALSE) + labs(title = "flight count to airports (by month)")
+```
+
+San Jose International Airport는 2007년전까지는 다른 공항에 비해 우위에 있다가, 시간이 지나면서 다른 두 공항과 비슷한 정도의 비행량을 가지고, 최근들어 다시 급격하게 비행량이 증가하는것을 알 수 있다.
+
+
+#### Q1-5
+
+각 세 공항에 대해, 가장 많은 회수의 비행이 있었던 달들은 다음과 같이 찾을 수 있다.
+
+먼저 각 기존 airportscount 테이블의 grouping을 풀고, 공항별로 그루핑을 한 다음,
+
+dense_rank 함수를 이용, 비행횟수가 많은 순서대로 차례대로 순위를 매긴다.
+
+그 후, rank별로 정렬하면 각 공항별로 언제 가장 비행이 많았는지 알 수 있게 된다.
+
+```{r}
+largest_month <- airportcounts %>% 
+ungroup() %>% 
+group_by(Dest) %>%
+mutate(rank = dense_rank(desc(flights_count))) %>% 
+arrange(rank)
+
+largest_month
+```
+
+
+이제, 이중 각 공항별로 가장 비행이 많았던 달을 10번째 순서까지 추출하면 된다.
+
+```{r}
+Q1_5 <- largest_month %>% filter(rank <= 10) %>% select(Year, Month, Dest, flights_count, rank)
+
+Q1_5
+```
+
+위와 같이 각 공항에서 가장 붐볐던 상위 10개의 월을 알 수 있다.
+
+
+
+```{r}
+Q1_5 %>% filter(Dest == "SJC") %>% select(Year, Month, Dest)
+
+Q1_5 %>% filter(Dest == "SNA") %>% select(Year, Month, Dest)
+
+Q1_5 %>% filter(Dest == "SMF") %>% select(Year, Month, Dest)
+
+```
+
+
+각 공항의 가장 붐볐던 월만 추출하면 위와 같다.
+
+
+
+```{r}
+rm(Q1_1)
+rm(airports_name)
+rm(airportcounts)
+rm(largest_month)
+rm(Q1_5)
+
+```
+
+
+
+### Q2. Finding reliable airlines (60 pts)
+
+#### Q2-1
+
+2015년의 Origin이 ORD, Dest가 MSP인 flight들에 대해, UA, DL, AA, MQ에 해당하는 Airline의 일 평균 delay를 구하자.
+
+```{r}
+flights <- tbl(con, "flights")
+
+flights_query <- flights %>% 
+    filter(Year == 2015, Op_Unique_Carrier %in% c("UA", "DL", "AA", "MQ"), Origin == "ORD", Dest == "MSP") %>% 
+    group_by(Year, Month, Day_of_Month, Op_Unique_Carrier) %>% 
+    summarise(avg_Arr_Delay = mean(Arr_Delay, na.rm = TRUE)) %>% 
+    filter(!is.na(avg_Arr_Delay))
+
+delays <- collect(flights_query) %>% 
+    ungroup() %>%  
+    transmute(Date = make_date(Year, Month, Day_of_Month), Carrier = Op_Unique_Carrier, avg_Arr_Delay)
+
+delays
+```
+
+먼저 filghts_query에 2015년, Carrier가 UA, DL, AA, MQ이고 Origin이 ORD, Dest가 MSP인 비행들만 찾도록 한 뒤, 각 Carrier와 날짜에 대해 각 Arr_delay의 평균을 계산하도록 만들어 주었고, 이때 그날 avg_Arr_delay가 NA인 경우는 제외하도록 한다.
+
+그 후, collect로 데이터베이스에서 해당하는 데이터를 받아오게 하였다.
+
+그리고 나서, 각 년/월/일 데이터를 하나의 Date로 합쳐서, delays 테이블이 Date, Carrier, avg_Arr_Delay의 꼭 필요한 column만 가지도록 하여
+메모리 소모를 최소화 하였다.
+
+
+#### Q2-2
+
+
+먼저, left join을 통해 각 Carrier의 full name을 delays 테이블에 붙여준 데이터를 만들었다.
+
+carrier의 fullname은 airlines 테이블의 Description column에 존재하고, airlines 테이블의 Code와 delay 테이블의 Carrier가 같으면 되므로, 다음과 같이 left_join을 실행하였다.
+
+```{r}
+adv_delay <- left_join(delays, collect(tbl(con, "airlines")), by = c("Carrier" = "Code")) %>% rename(Carrier_Name = Description) 
+```
+
+이렇게 만들어진 data를 adv_delay라는 변수에 저장하고, 
+
+이 데이터를 사용하여, 항공사별 평균 딜레이의 분포를 비교한 그래프를 생성하였다.
+
+```{r}
+ggplot(data = adv_delay, mapping = aes(x = avg_Arr_Delay, color = Carrier_Name)) + geom_freqpoly(binwidth = 5)
+```
+
+그런데 위와 같이 그래프를 그리면, 각 항공사가 ORD->MSP 루트로 운항할때, 한 항공사는 자주 운항하지만, 다른 항공사는 자주 운항하지 않는다면, 항공사마다 데이터의 개수가 달라져 그래프를 비교하기에 적합하지 않으므로, 이 그래프는 사용할 수 없다.
+
+
+
+따라서 다음과 같이 delay의 density plot을 그렸다.
+
+```{r}
+ggplot(data = adv_delay) + geom_density(mapping = aes(x = avg_Arr_Delay, color = Carrier_Name))
+```
+
+이제 이 그래프를 통해 가장 reliable한 항공사를 찾으면 되는데,
+
+도착 지연시간이 낮을 확률이 큰 항공사가 항공사가 reliable하다고 생각할 수 있다. 
+
+다시말해, 도착 지연시간의 분포가 평균 지연시간이 작은쪽에 몰려있을수록, 항공사가 reliable하다고 생각할 수 있는데,
+
+비행기를 이용하는 사람들은 대부분 비행기의 도착시간에 맞춰 스케줄을 잡으므로, 도착시간보다 늦게 도착하는 경우 나머지 스케줄에 영향을 줄 확률이 매우 커지기 때문이다.
+
+따라서 지정된 시간보다 더 늦게 도착하는 경우가 많을수록, 특히, 약간 늦는것보다는 크게 늦는것이 스케줄에 영향을 줄 확률이 매우커져 더욱 치명적이므로, 
+
+avg_arr_delay가 30분 이상일 확률이 크다면, 그 항공사는 reliable하지 않은 항공사라 할 수 있을것이다.
+
+
+avg_arr_delay가 30분 이상일 확률은, 다음과 같이 그래프의 cdf를 그려 알 수 있다.
+
+```{r}
+ggplot(adv_delay) + stat_ecdf(geom = "step", mapping = aes(x = avg_Arr_Delay, color = Carrier_Name))
+```
+
+이 그래프에서, avg_Arr_Delay 가 30일때의 cdf의 값이 도착 지연시간이 30분 이하일 확률이므로,
+
+따라서 avg_Arr_Delay가 30일때의 값이 가장 높으면 그 항공사가 most reliable하고, 가장 낮은 항공사가 leart reliable 하다고 할 수 있게된다.
+
+
+따라서 Delta Airline이 most reliable한 항공사,
+Envoy Air가 least reliable한 항공사라고 할 수 있다.
+
+
+```{r}
+rm(delays)
+rm(adv_delay)
+```
+
+
+### Q3. All flights (30 pts)
+
+#### Q3-1
+
+2001년 월요일에 있는 비행기록을 출력하기 위해, 먼저 다음과 같이 2001년, 월요일에 해당되는 비행 데이터를 모두 가져오도록 하였다.
+
+```{r}
+flights <- tbl(con, "flights")
+
+flights_query <- flights %>% 
+    filter(Year == 2001, Day_Of_Week == 1)
+
+monday_flight_2001 <- collect(flights_query)
+```
+
+그 뒤, make_date 함수를 통해 Year, Month, Month_of_Date를 합쳐 Date를 생성하고, 각 날짜에 따른 비행 숫자를 구하여 monday_count_2001 변수에 결과를 저장한다.
+
+(sql에는 make_date 함수가 없으므로, flights_query에 make_date 함수가 들어간 문장을 쓰게되면 collect에서 flights_query를 sql문장으로 변환하는 과정에서 문제가 생기게 된다.)
+
+```{r}
+monday_count_2001 <- monday_flight_2001 %>% 
+    mutate(Date = make_date(Year, Month, Day_of_Month)) %>%
+    group_by(Date) %>% 
+    summarise(count = n())
+```
+
+
+그 뒤, 각 날짜에 따른 count를 그려주었다.
+
+
+```{r}
+ggplot(data = monday_count_2001, mapping = aes(x = Date, y = count)) + 
+    geom_point() + geom_smooth(se = FALSE) + coord_cartesian(ylim = c(12000, 19000))
+```
+
+위 그래프를 보면 흥미롭게도, 2001년 9월까지는 비슷한 숫자의 비행이 있다가, 9월 초즈음부터 갑자기 15000 이하로 비행 숫자가 급격하게 감소하는것을 알 수 있는데,
+
+아마도 이는 2001년 9월에 발생했던 9.11 테러때문에, 이와 같은 감소가 일어났을것이라 추측된다.
+
+
+
+#### Q3-2
+
+2011년에 대해서도 똑같은 그래프를 그려보자.
+
+
+```{r}
+flights_query <- flights %>% 
+    filter(Year == 2011, Day_Of_Week == 1)
+
+monday_flight_2011 <- collect(flights_query)
+
+monday_count_2011 <- monday_flight_2011 %>% 
+    mutate(Date = make_date(Year, Month, Day_of_Month)) %>%
+    group_by(Date) %>% 
+    summarise(count = n())
+```
+
+2001년때와 같이 데이터를 가공한 뒤,
+
+
+```{r}
+ggplot(data = monday_count_2011, mapping = aes(x = Date, y = count)) + 
+    geom_point() + geom_smooth(se = FALSE) + coord_cartesian(ylim = c(12000, 19000))
+```
+
+그래프를 출력해보았다. (2001년과 비교하기 위해, 2001년과 동일하게 y 범위를 맞추어주었다.)
+
+이 경우에는 2001년과는 달리, 1월~7월까지는 비행수가 점점 증가하는 양상을 보이다, 12월로 갈수록 점점 비행수가 감소하는 패턴을 보인다.
+
+2001년과 다른점은, 비행수가 증감하는 경향이 더 뚜렷하게 나타나며, 7월 이후 비행수가 감소하긴 하지만, 2001년과 같이 9월 이후로 크게 감소하는 그래프는 보이지 않는다.
+
+2011년에 비행숫자가 7월이 될수록 증가하다 1월이 될수록 감소하는 이유로 추측될 수 있는것은,
+
+여름에 가까워 질수록 점점 날씨가 따뜻해져(남반구는 반대로 추워지지만, 비행기를 타는 사람들의 수는 남반구보다 북반구에 많다) 휴가를 가는 사람들이 많아지므로, 이에 따라 항공편을 늘려서 6~8월에는 비행기가 많아지고, 
+
+반대로 겨울에는 점점 날씨가 추워지므로 휴가를 가는 사람들이 여름에 비해 적어져, 이에따라서 비행기편이 점점 줄어든다고 추측할 수 있다.
+
+```{r}
+rm(monday_flight_2001)
+rm(monday_count_2001)
+rm(monday_flight_2011)
+rm(monday_count_2011)
+```
+
+
+```{r}
+dbDisconnect(con)
+```

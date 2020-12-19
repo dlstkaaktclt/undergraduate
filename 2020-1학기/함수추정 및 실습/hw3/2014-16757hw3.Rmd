@@ -1,0 +1,1014 @@
+---
+title: "함수추정 및 실습 HW3"
+author: "김보창"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Dig into the internal representation of R objects
+library(tidyverse) # install.packages('tidyverse')
+library(splines)
+library(stats)
+library(stringr)
+```
+
+
+```{r}
+set.seed(123)
+```
+실행할때마다 동일한 결과가 나오도록 set.seed를 통해 시드를 설정해준다.
+
+
+## Q1
+
+### 1-(a)
+
+```{r}
+mykrig1<-function(nd, ne, xx, yy, ex, bw)
+{
+# (1)
+  full <- matrix(0, nd, nd)
+  full[lower.tri(full)] <- dist(xx)
+  dist1 <- full + t(full)
+  cc <- exp( - dist1^2/bw^2)
+# (2)
+  dvector <- function(exs, xx, bw)
+  {
+    dv <- exp( - (exs - xx)^2/bw^2)
+    return(dv)
+  }
+  dmat <- apply(matrix(ex, nrow = 1), 2, dvector, xx = xx,
+    bw = bw)
+# (3)
+  ccr <- solve(cc)
+  ccs <- sum(apply(ccr, 2, sum))
+  chi <- (-2 * (1 - apply((ccr %*% dmat), 2, sum)))/ccs
+  chimat <- matrix(rep(chi, times = nd), ncol = ne,
+    byrow = T)
+# (4)
+  ww <- ccr %*% (dmat - 0.5 * chimat)
+  ey <- t(ww) %*% yy
+# (5)
+  return(ey)
+}
+```
+
+먼저, 교재의 4장 (E) 부분에 해당하는 코드를 이용하여 ordinary kriging을 구해주는 함수를 구현하였다.
+
+여기서 kriging에 사용하는 theoretical correlogram은
+
+gaussian correlogram으로, 다음과 같다.
+
+$Correlo(r) = \text{exp}(-(\frac{r}{\delta})^2)$
+
+위 함수는 데이터인 xx, yy와 데이터의 개수인 nd,
+추정할 데이터의 위치인 ex와 그 개수인 ne,
+그리고 위의 theoretical correlogram에서 사용할 $\delta$를 받아 ex의 위치에서 ordinary kriging된 결과를 리턴해주는 함수이다.
+
+cross validation 값의 정의는 아래와 같다.
+
+$$C V[\hat{m}(x)]=\frac{\sum_{k=1}^{n}\left(Y_{k}-\hat{m}^{-k}\left(X_{k}\right)\right)^{2}}{n}$$
+
+
+문제에서 원하는것은, 이 cross validation을 구할때 양 끝점을 제외하는 경우는 사용하지 않을것이므로, 위의 정의를 다시 아래와 같이 바꿔서 사용할 것이다.
+
+$$C V[\hat{m}(x)]=\frac{\sum_{k=2}^{n-1}\left(Y_{k}-\hat{m}^{-k}\left(X_{k}\right)\right)^{2}}{n}, X_1 \le X_2 ... \le X_n$$
+
+이제, 위 정의대로 cross validation을 구해주는 함수를 짜자.
+
+cross validation을 구할때, 양 끝점을 제외해야하므로 X들이 sorting된 상태여야하고, 따라서 sorting을 해주었다.
+
+아래 함수는 xdata와 ydata, 그리고 bandwidth들을 받아서 각 bandwidth에 해당하는 CV값들을 리턴해준다.
+
+
+```{r}
+cv_ord_krig<-function(xdata, ydata, bws)
+{
+    nd <- length(ydata)
+    
+    ydata <- ydata[order(xdata)]
+    xdata <- xdata[order(xdata)]
+    #sort by ascending order. order of ydata, xdata is important!!
+    
+    
+    get_krig_cv <- function(bw, x1, y1)
+    {
+        cv <- 0
+        nd <- length(y1)
+        
+        if(nd < 3) return(NULL) # we can't get cv
+        
+        for(i in seq(from = 2, to = nd-1))
+        {
+            xdata <- x1[-i]
+            ydata <- y1[-i]
+            remain_xdata <- x1[i]
+            remain_ydata <- y1[i]
+            estim_y <- mykrig1(nd-1, 1, xdata, ydata, as.vector(remain_xdata), bw)
+            cv <- cv + sum((remain_ydata - estim_y)**2)
+        }
+        
+        cv <- cv / (nd - 2)
+        return(cv)
+    }
+    
+    
+    cvlst <- lapply(as.list(bws),get_krig_cv, x1 = xdata, y1 = ydata)
+    cvlst <- unlist(cvlst)
+    return(cvlst)
+}
+    
+
+```
+
+
+아래함수는 bandwidth와 cv array를 받아서 그래프를 출력해주는 함수다.
+
+```{r}
+plot_cv <- function(bandwidth_array, cv_array, description = "")
+{
+    par(mfrow = c(1, 1))
+    plot(bandwidth_array, cv_array, type = "n", 
+     xlab = "bandwidth", ylab = "CV", main = description)
+    points(bandwidth_array, cv_array, pch = 1, cex = 0.5)
+    #lines(smtparam_array, cv_array, lwd = 1)
+    pcvmin <- seq(along = cv_array)[cv_array == min(cv_array, na.rm = TRUE)]
+    spancv <- bandwidth_array[pcvmin]
+    cvmin <- cv_array[pcvmin]
+    points(spancv, cvmin, cex = 1, pch = 15, col = "red")
+}
+```
+
+
+plot graph함수는 xdata, ydata, smtparam을 받아 xdata의 위치에서 추정된 값을 리턴하는 estimate_func을 받아서, 원래 데이터를 점으로, estimate된 결과를 파란 선으로 그려준다.
+
+```{r}
+plot_graph <- function(estimate_func, xdata, ydata, smtparam, description = "")
+{
+    par(mfrow=c(1,1))
+    estimated_y <- estimate_func(xdata, ydata, smtparam)
+    plot(xdata, ydata , xlab = "X", ylab = "Y", type = "p", main = description, sub = sprintf("using smtparam : %f", smtparam))
+    lines(xdata, estimated_y, col = "blue")
+}
+```
+
+
+위 함수를 사용하기 위해 다음과 같이 estimate 함수를 정의한다.
+
+```{r}
+estimate_ord_krig <- function(xdata, ydata, bw)
+{
+    nd <- length(ydata)
+    return(mykrig1(nd, nd, xdata, ydata, xdata, bw))
+}
+```
+
+
+
+
+마지막으로, xdata와 ydata, bandwidth 목록을 받아서 이중 가장 CV값이 낮은 bandwidth를 사용한 kriging 그래프를 출력해주는 함수를 다음과 같이 구현하였다.
+
+```{r}
+full_test_kriging <- function(xdata, ydata, smtparam_array, description = "")
+{
+    cv_array <- cv_ord_krig(xdata, ydata, smtparam_array)
+    plot_cv(smtparam_array, cv_array, description)
+        
+    smt_idx <- which(cv_array == min(cv_array, na.rm = TRUE))
+    if(length(smt_idx) > 1) 
+    {
+        smt_idx <- smt_idx[1]
+    }
+    best_smt <- smtparam_array[smt_idx]
+    
+    
+    plot_graph(estimate_ord_krig, xdata, ydata, best_smt, description = description)
+}
+```
+
+
+
+### 1-(b)
+
+problem 2.3의 chapter 2의 데이터는 eqispaced data로, x값으로 1,2...의 값을 가지게 된다.
+
+해당 데이터를 생성하고, 위 함수를 이용하여 가장 CV값을 낮게 만드는 $\delta$를 찾자.
+
+delta의 값으로는 0.01~2까지, 0.01 간격의 값을 주었다.
+
+```{r}
+ydata <- c(9.6, 12.8, 14.6, 15.6 ,15.5 ,15.1, 15.6, 13.8, 13.9, 16.1, 17.3, 18, 19.9, 20, 19.9, 18.2, 15.8, 11.2, 9.6, 15.8, 16.7, 17.5, 13.7, 15.7, 20.6, 21.2, 16.7, 16, 20.7, 17.6)
+xdata <- seq_len(length(ydata))
+
+
+full_test_kriging(xdata, ydata, seq(0.01,2,by = 0.01), description = "delta = 0.01~2, by 0.01")
+```
+
+위에서 알 수 있듯이, $\delta = 1.31$에서 CV가 가장 작고, 이 값을 이용하여 ordinary criging을 한 결과로 출력된 그래프는 위와 같다.
+
+
+## Q2
+
+### 2-(a)
+
+모델이 다음과 같은 simple kriging에서의 Hat matrix를 구하고, Hat matrix의 성분들을 plot해주는 함수를 만들자.
+
+모델은 다음과 같다.
+
+$$y_i = e_i = e_i^c + e_i^u$$.
+
+$$E[e_i^c] = 0, E[e_i^u] = 0, Cov(e_i^c, e_j^c) = [C']_{ij}, Cov(e_0^c, e_i^c) = d'_i, Cov(e_0^c, e_0^u) = 0, Cov(e_i^c, e_i^u) = 0$$
+$$Cov(e_i^u, e_j^c) = 0, Cov(e_i^u,e_j^u) = 0 (i \neq j), Cov(e_i^u, e_i^u) = \sigma^2, Cov(e_0^u, e_0^u) =  \sigma^2$$
+
+이때, $\hat{y_0} (= e_0^c)$를 구하기 위해, $\hat{y_0} = \sum_{i=1}^n \alpha_i y_i$ 와 같은 linear predicter라 하면, 이때의 $\alpha$는 다음과 같이 구해진다.
+
+$\alpha = (\alpha1, \alpha2, ...\alpha_n)^t$라 할때,
+
+아래 식을 최소화 하는 $\alpha$를 구하면 되고,
+
+$$Var_{simple,smoothing} = E((e_0^c - \sum_{i=1}^n \alpha_i (e_i^c + e_i^u))^2) = E[(e_0^c)^2] - 2 \sum_{i=1}^n \alpha_i d'_i + \sum_{i=1}^n \sum_{j=1}^n \alpha_i [C']_{ij} \alpha_j  + \sigma^2 \sum_{i=1}^n \alpha_i$$
+
+위를 $\alpha$에 대해 미분했을떄, 0이되는 $\alpha$가 최소화 하는 값이므로, 
+이러한 $\alpha = (C' + \sigma^2 I_n)^{-1}d'_0$ 이므로, 
+($d'_0 = (d'_1, d'_2 ... d'_n)^t, d'_i = Cov(e_0^c , e_i^c)$) 가 되고,
+
+따라서 Hat matrix H를 구하기 위해서는, $\hat{y_i}$를 구해야 하는데,
+
+$\hat{y_i}$에 해당하는  $d'_i = (Cov(e_i^c, e_1^c), ... , Cov(e_i^c, e_n^c))^t$ 에서, 이는 $C'$의 ith row와 같으므로, $d'_i$를 ith row로 가지는 n x n matrix를 $D'$이라 하면,
+
+$\hat{y} = (C' + \sigma^2 I_n)^{-1}D'y$ 에서, $D' = C'$이므로,
+
+따라서 $\hat{y} = (I_n + \sigma^2 D'^{-1})^{-1}y$ 이므로,
+
+hat matrix $H = (I_n + \sigma^2 C'^{-1})^{-1}$ 가 된다.
+
+따라서 이를 구하자.
+
+여기서, C'의 값은 정확히 알 수 없는 값이므로, theoretical correlogram을 사용하도록 하겠다.
+
+gaussian correlogram을 사용한다.
+$Correlo(r) = \text{exp}(-(\frac{r}{\delta})^2)$
+
+
+이제 이를 구해주는 함수를 짜자. 다음 함수는 x data, bandwidth, sigma square를 받아서 Hat matrix의 각 성분들을 구해서 리턴해준다.
+
+```{r}
+plot_hatmat <- function(hat_mat)
+{
+   y <- matrix(unlist(hat_mat), nrow = dim(hat_mat)[1], ncol = dim(hat_mat)[2]) 
+  
+   persp(y, zlim = c(-0.3, 1), xlab = "Hat_i", ylab = "Hat_j",  zlab = "Hatmat_value", lab = c(3,3,3), theta = -30, phi = 20, ticktype = "detailed")
+}
+```
+
+
+
+```{r}
+simple_krig_hat<-function(xx, bw, sig2)
+{
+  nd <- length(xx)
+# (1) get C' matrix
+  full <- matrix(0, nd, nd)
+  full[lower.tri(full)] <- dist(xx)
+  dist1 <- full + t(full)
+  cc <- exp( - dist1^2/bw^2)
+# (2) get (I + \sigma^2 C'^-1)^-1
+  cc_inv <- solve(cc)
+  I_plus_cc_inv <- diag(nd) + sig2 * cc_inv
+  hat_mat <- solve(I_plus_cc_inv)
+  
+  plot_hatmat(hat_mat)
+  
+  return(hat_mat)
+}
+```
+
+
+이제, 1번에서 사용했던 데이터를 사용해서 hat matrix의 값과 그래프를 그려보면 다음과 같다.
+
+$sigma^2 = 1$로 가정하였다.
+
+
+bandwidth($\delta$)를 0.3 , 1, 3으로 주었을때의 hat matrix는 다음과 같다. 
+
+```{r}
+ydata <- c(9.6, 12.8, 14.6, 15.6 ,15.5 ,15.1, 15.6, 13.8, 13.9, 16.1, 17.3, 18, 19.9, 20, 19.9, 18.2, 15.8, 11.2, 9.6, 15.8, 16.7, 17.5, 13.7, 15.7, 20.6, 21.2, 16.7, 16, 20.7, 17.6)
+xdata <- seq_len(length(ydata))
+
+simple_krig_hat(xdata, 0.3, 1)
+simple_krig_hat(xdata, 1, 1)
+simple_krig_hat(xdata, 3, 1)
+```
+
+bandwidth가 커질수록, 데이터에서 먼 위치의 값들도 고려하게 되므로, diagonal entry의 hat matrix value는 줄어들고, diagonal entry에서 상대적으로 먼 위치에서의 값이 증가함을 알 수 있다.
+
+
+
+## Q3
+
+universal kriging을 이용해서 Q1과 같은 과정을 반복하자.
+
+다만, polynomiaㅣ equation의 degree도 같이 optimized되어야 하므로, 이러한 과정을 진행해줄 수 있도록 위에서 구현한 함수를 살짝 바꿀것이다.
+
+먼저, 
+
+```{r}
+mykrig2<-function(nd, ne, xx, yy, ex, bw, np)
+{
+# (1) 
+  full <- matrix(0, nd, nd)
+  full[lower.tri(full)] <- dist(xx)
+  dist1 <- full + t(full)
+  cc <- exp( - dist1^2/bw^2)
+# (2)
+  ll <- t(chol(cc))
+  llr <- solve(ll)
+# (3)
+  powerf <- function(jj, x1)
+  {
+    pw <- x1^jj
+    return(pw)
+  }
+  gg <- apply(matrix(c(0:(np - 1)), nrow = 1), 2, powerf,
+    x1 = xx)
+  aa <- qr(llr %*% gg)
+  qq <- qr.Q(aa)
+  rr <- qr.R(aa)
+# (4)
+  bb <- t(qq) %*% llr %*% yy
+  beta1 <- solve(rr[1:np, ], bb[1:np])
+# (5)
+  dvector <- function(exs, xx, bw)
+  {
+    dv <- exp( - (exs - xx)^2/bw^2)
+    return(dv)
+  }
+  dmat <- apply(matrix(ex, nrow = 1), 2, dvector, xx = xx,
+    bw = bw)
+# (6)
+  ccr <- solve(cc)
+  almat <- ccr %*% dmat
+# (7)
+  mm <- as.vector(beta1 %*% t(gg))
+  exmat <- t(apply(matrix(c(0:(np - 1)), nrow = 1), 2,
+    powerf, x1 = ex))
+  ey <- beta1 %*% exmat + as.vector(t(almat) %*% (yy - mm))
+# (8)
+  return(ey)
+}
+```
+
+먼저, 교재의 4장 (G) 부분에 해당하는 코드를 이용하여 polynomial 함수를 이용한 universal kriging을 구해주는 함수를 구현하였다.
+
+즉, 다음과 같은 모델을 사용한다.
+
+
+$y = \sum_{j=0}^{p-1} \beta_j g_j(x) + e$, 여기서 $g_j(x) = x^j$가 된다. 
+
+
+
+여기서 kriging에 사용하는 theoretical correlogram은
+
+gaussian correlogram으로, 다음과 같다.
+
+$Correlo(r) = \text{exp}(-(\frac{r}{\delta})^2)$
+
+위 함수는 데이터인 xx, yy와 데이터의 개수인 nd,
+추정할 데이터의 위치인 ex와 그 개수인 ne,
+그리고 위의 theoretical correlogram에서 사용할 $\delta$인 bw와 polynomial의 차수인 np
+(정확히는 np-1 차수의 polynomial을 사용함)을 받아 ex의 위치에서 함수로 polynomial function을 사용한, universal kriging된 결과를 리턴해주는 함수이다.
+
+
+이제, 위 함수를 사용하여 Q1과 같이, polynomial과 bandwidth를 바꿔가면서 CV를 가장 작게만드는 차수와 bandwidth를 찾고, kriging된 결과를 출력해보자.
+
+
+먼저, bandwidth들과 polynomial들의 차수를 받아서 각 값에 해당하는 CV값들을 계산해주는 함수를 만든다.
+
+```{r}
+cv_univ_pol_krig<-function(xdata, ydata, bws, pols)
+{
+    nd <- length(ydata)
+    
+    ydata <- ydata[order(xdata)]
+    xdata <- xdata[order(xdata)]
+    #sort by ascending order. order of ydata, xdata is important!!
+    
+    
+    get_univ_pol_krig_cv <- function(bw, pol, x1, y1)
+    {
+        cv <- 0
+        nd <- length(y1)
+        
+        if(nd < 3) return(NULL) # we can't get cv
+        
+        for(i in seq(from = 2, to = nd-1))
+        {
+            xdata <- x1[-i]
+            ydata <- y1[-i]
+            remain_xdata <- x1[i]
+            remain_ydata <- y1[i]
+            estim_y <- mykrig2(nd-1, 1, xdata, ydata, as.vector(remain_xdata), bw, pol)
+            cv <- cv + sum((remain_ydata - estim_y)**2)
+        }
+        
+        cv <- cv / (nd - 2)
+        return(cv)
+    }
+    
+    cvmat <- matrix(nrow = length(bws), ncol = length(pols))
+    for(i in seq_len(length(pols)))
+    {
+       cvlst <- lapply(as.list(bws),get_univ_pol_krig_cv, pol = pols[i], x1 = xdata, y1 = ydata)
+       cvlst <- unlist(cvlst)
+       cvmat[,i] <- cvlst
+    }
+    
+    return(cvmat)
+}
+```
+
+아래함수는 bandwidth, polynomial 들과 cv matrix를 받아서 그래프를 출력해주는 함수다.
+
+```{r}
+plot_2d_cv <- function(bandwidth_array, pol_array, cv_mat, description = "")
+{
+    par(mfrow = c(1, 1))
+    persp(cv_mat, xlab = "bandwidth", ylab = "poly_degree", zlab = "cv", theta = -30, phi = 20, lab = c(3,3,3))
+    
+}
+```
+
+
+plot univ krig graph함수는 xdata, ydata, bw, pol을 받아 xdata의 위치에서, 원래 데이터를 점으로, estimate된 결과를 파란 선으로 그려준다.
+
+```{r}
+plot_univ_krig_graph <- function(xdata, ydata, bw, pol, description = "")
+{
+    par(mfrow=c(1,1))
+    estimated_y <- mykrig2(length(xdata), length(xdata), xdata, ydata, xdata, bw, pol)
+    plot(xdata, ydata , xlab = "X", ylab = "Y", type = "p", main = description, sub = sprintf("using bw : %f, pol = %d", bw, pol))
+    lines(xdata, estimated_y, col = "blue")
+}
+```
+
+
+
+마지막으로, xdata와 ydata, bandwidth, polynomial degree 목록을 받아서 이중 가장 CV값이 낮은 parameter를 사용한 kriging 그래프를 출력해주는 함수를 다음과 같이 구현하였다.
+
+```{r}
+full_test_univ_kriging <- function(xdata, ydata, smtparam_array, pol_array, description = "")
+{
+    cv_mat <- cv_univ_pol_krig(xdata, ydata, smtparam_array, pol_array)
+    plot_2d_cv(smtparam_array, pol_array, cv_mat, description)
+        
+    smt_idx <- which(cv_mat == min(cv_mat, na.rm = TRUE),arr.ind = TRUE)
+    
+    if(length(smt_idx) > 1) 
+    {
+        smt_idx <- smt_idx[1,]
+    }
+    
+    bw_idx <- smt_idx[1]
+    pol_idx <- smt_idx[2]
+    
+    best_bw <- smtparam_array[bw_idx]
+    best_pol <- pol_array[pol_idx]
+    
+    plot_univ_krig_graph(xdata, ydata, best_bw, best_pol, description = description)
+}
+```
+
+
+
+
+problem 2.3의 chapter 2의 데이터는 eqispaced data로, x값으로 1,2...의 값을 가지게 된다.
+
+해당 데이터를 생성하고, 위 함수를 이용하여 가장 CV값을 낮게 만드는 $\delta$를 찾자.
+
+delta의 값으로는 0.01~2까지, 0.01 간격의 값을 주었고 polynomial은 0차~4차까지를 사용하였다.
+
+```{r}
+ydata <- c(9.6, 12.8, 14.6, 15.6 ,15.5 ,15.1, 15.6, 13.8, 13.9, 16.1, 17.3, 18, 19.9, 20, 19.9, 18.2, 15.8, 11.2, 9.6, 15.8, 16.7, 17.5, 13.7, 15.7, 20.6, 21.2, 16.7, 16, 20.7, 17.6)
+xdata <- seq_len(length(ydata))
+
+
+full_test_univ_kriging(xdata, ydata, seq(0.01,2,by = 0.01),seq(1,5) ,description = "delta = 0.01~2, by 0.01, pol = 0~4")
+```
+
+pol-1이 degree 이므로, 결과로 알수 있듯이, degree가 0차, bandwidth가 1.31일때 가장 CV값이 낮음을 알 수 있다.
+
+즉, ordinary kriging이 가장 효율적이고, 이때의 bandwidth가 1.31이 되어야함을 알 수 있었다.
+
+
+
+
+
+## Q4
+
+### 4-(a)
+
+
+$$X = \left(\begin{array}{ccccccccc}
+1 & X_{11} & X_{11}^{2} & \ldots & X_{11}^{p} & X_{12} & X_{12}^{2} & \ldots & X_{12}^{q} \\
+1 & X_{21} & X_{21}^{2} & \ldots & X_{21}^{p} & X_{22} & X_{22}^{2} & \ldots & X_{22}^{q} \\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & X_{n 1} & X_{n 1}^{2} & \ldots & X_{n 1}^{p} & X_{n 2} & X_{n 2}^{2} & \ldots & X_{n 2}^{q}
+\end{array}\right)$$
+
+$$\beta = \left(\begin{array}{c}
+c_0 \\
+c_1 \\
+\vdots \\
+c_p \\
+d_1 \\
+\vdots \\
+d_q\end{array}\right)$$
+
+$$y = \left(\begin{array}{c}
+y_1 \\
+y_2 \\
+\vdots \\
+y_n \end{array}\right)$$
+
+라 하면, (4.116)의 모델에서 y는 다음과 같이 쓸 수 있다.
+
+$y = X\beta + e$
+
+이때, $e_i$는 서로 독립이므로, $e \sim (0,\sigma^2 I_n)$이 성립한다. 즉, 평균이 0이고, 분산이 단위행렬의 실수배가 된다.
+
+따라서, normal equation을 구하기 위해
+
+$E_{p4} = ||y - X\beta||^2 $을 최소화하는 $\beta$를 구하면 되는데, 이는 우리가 linear regression에서 많이 접해왔던 형태이므로, 이를 $\beta$로 미분한 값이 0이되는 $\beta$에서 최솟값을 가짐을 알고,
+
+$||y - X\beta||^2 = (y - X\beta)^t (y - X\beta) = y^t y - 2\beta^tX^ty - \beta^t X^t X \beta$에서,
+
+위 식을 $\beta$로 미분해서 0이되는 $\beta$는
+
+$\frac{\partial E_{p4}}{\partial \beta} = - 2X^ty + 2 X^t X \beta = 0$ 에서, normal equation은 다음과 같은 형태이다.
+$X^t X \beta = X^ty$
+
+추가적으로, $X^t X$가 non-singular matrix이면 $\hat{\beta} =(X^t X)^{-1} X^t  y$임도 알고있다.
+
+
+### 4-(b)
+
+위 normal equation을 이용해서, regression coefficient인 $\hat{\beta}$를 구하는 함수를 짜고,
+
+나아가 해당하는 hat matrix까지 구해주는 함수를 짜자.
+
+hat matrix의 경우, $\hat{y} = X\hat{\beta} = X (X^t X)^{-1} X^t  y$에서,
+
+$H = X (X^t X)^{-1} X^t$임을 안다.
+
+
+
+
+poly함수의 인자로 raw = TRUE를 주면, 받은 데이터를 degree만큼 제곱해서 확장한 matrix를 리턴해준다.
+
+예를들어 poly(c(1,2,3), deg = 4, raw = TRUE)를 실행하면,
+
+첫번째 column은 1,2,3 , 두번째 column은 1,4,9, 세번째 column은 1,8,27, 네번째 column은 1,16,81인 matrix를 리턴해주므로
+
+다음함수는 이를 이용하여 design matrix를 만들어서 리턴해준다.
+
+4-c에서도 사용할 수 있도록, 관련 기능을 추가하여 구현하였다. (r_0(.) = \frac{1}{\sqrt{n}})
+
+```{r}
+get_design_mat_two_predictor <- function(x1data, x2data, deg1, deg2, raw = FALSE)
+{
+    if(raw == FALSE)
+    {
+        X <- matrix(rep(1/sqrt(length(x1data)), length(x1data)), nrow = length(x1data), ncol = 1)
+        d1 <- poly(x1data, degree = deg1, raw = FALSE)
+        d2 <- poly(x2data, degree = deg2, raw = FALSE)
+        X <- cbind(X,d1,d2)
+        return(X)
+    }
+    else
+    {
+        X <- matrix(rep(1, length(x1data)), nrow = length(x1data), ncol = 1)
+        d1 <- poly(x1data, degree = deg1, raw = TRUE)
+        d2 <- poly(x2data, degree = deg2, raw = TRUE)
+        X <- cbind(X,d1,d2)
+        return(X)
+    }
+}
+```
+
+다음 함수는 x1data와 x2data, ydata를 받고, 각 x1,x2의 차수를 받아
+
+위와 같은 normal equation을 이용해 $\hat{beta}$를 구해준다.
+
+```{r}
+additive_reg_coef_raw <- function(x1data, x2data, ydata, deg1, deg2)
+{
+    # first, make design matrix
+    X <- get_design_mat_two_predictor(x1data, x2data, deg1, deg2, raw = TRUE)
+    
+    # next, get beta = (X'X)^-1X'y
+    
+    y <- matrix(ydata, nrow = length(ydata), ncol = 1)
+    
+    beta = solve(t(X) %*% X, t(X) %*% y)
+    # solve(A,b) return A^-1 b.
+    
+    return(beta)
+}
+```
+
+또한, hat matrix역시 다음과 같이 구할 수 있다. hat matrix를 구할때는 ydata는 필요하지 않다.
+
+```{r}
+additive_hat_mat_raw <- function(x1data, x2data, deg1, deg2)
+{
+    # first, make design matrix
+    X <- get_design_mat_two_predictor(x1data, x2data, deg1, deg2, raw = TRUE)
+    
+    # next, get H = X(X'X)^-1X'
+    
+    hat = X %*% solve(t(X) %*% X) %*% t(X)
+    # solve(A) return A^-1.
+    
+    return(hat)
+}
+```
+
+이렇게 구현한 함수를 다음과 같이 테스트 해볼 수 있다.
+
+$Y_i = sin(0.2 \pi X_{i1}) + 0.05 X_{i2}^2 - 0.4 X_{i2} + 3 + e_i$,
+$e_i \sim N(0, 0.1^2)$이고, $e_i$들의 분포가 서로 독립인 데이터를 이용해서,
+
+$Y_i = c_0 + \sum_{i=1}^p c_i X_{i1}^i + \sum_{i=1}^q d_i X_{i2}^i$
+
+p = 4, q = 2
+
+와 같은 모델을 이용하여 추정한 coefficient들과 hat matrix는 다음과 같다.
+
+
+
+```{r}
+# (1)
+nd <- 40
+# (2)
+set.seed(100)
+xx1 <- runif(nd, min =0, max = 10)
+xx2 <- runif(nd, min =0, max = 10)
+yy <- sin(0.2 * pi * xx1) + xx2^2 * 0.05 - xx2 * 0.4 +
+  3 + rnorm(nd, mean = 0, sd = 0.1)
+# (3)
+deg1 <- 4
+deg2 <- 2
+reg_coef_raw <- additive_reg_coef_raw(xx1, xx2, yy, deg1, deg2)
+reg_hat_raw <- additive_hat_mat_raw(xx1, xx2, deg1, deg2)
+
+reg_coef_raw
+
+plot_hatmat(reg_hat_raw)
+```
+
+
+### 4-(c)
+
+$$\left(\begin{array}{cccccccc}
+r_{0}\left(X_{11}\right) & r_{1}\left(X_{11}\right) & r_{2}\left(X_{11}\right) & \cdots & r_{p}\left(X_{11}\right) & s_{1}\left(X_{12}\right) & \cdots & s_{q}\left(X_{12}\right) \\
+r_{0}\left(X_{21}\right) & r_{1}\left(X_{21}\right) & r_{2}\left(X_{21}\right) & \cdots & r_{p}\left(X_{21}\right) & s_{1}\left(X_{22}\right) & \cdots & s_{q}\left(X_{22}\right) \\
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots & \ddots & \vdots \\
+r_{0}\left(X_{n 1}\right) & r_{1}\left(X_{n 1}\right) & r_{2}\left(X_{n 1}\right) & \cdots & r_{p}\left(X_{n 1}\right) & s_{1}\left(X_{n 2}\right) & \cdots & s_{q}\left(X_{n 2}\right)
+\end{array}\right)$$
+
+위와 같은 design matrix를 사용해야 한다. 이때, $r_0(.) = \frac{1}{\sqrt{n}}$, $<r_i,r_j> = \delta_{ij}, <s_i,s_j> = \delta_{ij}, \delta_{ij}= I(i=j)$ 가 성립한다. 즉, $r_i$들과 $s_i$들은 orthogoanl polynomial이다.
+
+이때, poly 함수를 이용하면, 각각 $r_j(X_{i1})$와 $s_j(X_{i2})$에 해당하는, orthogonal polynomial들의 값들을 생성해주므로, 위에서 구현한 get_design_mat_two_predictor에 raw 인자를 FALSE로 주면, 위와 같은 design matrix를 받아올 수 있다.
+
+따라서, 위 design matrix를 사용하여 각각의 coefficient와 hat matrix를 리턴하는 함수를 짜면,
+
+```{r}
+additive_reg_coef <- function(x1data, x2data, ydata, deg1, deg2)
+{
+    # first, make design matrix
+    X <- get_design_mat_two_predictor(x1data, x2data, deg1, deg2, raw = FALSE)
+    
+    # next, get beta = (X'X)^-1X'y
+    
+    y <- matrix(ydata, nrow = length(ydata), ncol = 1)
+    
+    beta = solve(t(X) %*% X, t(X) %*% y)
+    # solve(A,b) return A^-1 b.
+    
+    return(beta)
+}
+```
+
+```{r}
+additive_hat_mat <- function(x1data, x2data, deg1, deg2)
+{
+    # first, make design matrix
+    X <- get_design_mat_two_predictor(x1data, x2data, deg1, deg2, raw = FALSE)
+    
+    # next, get H = X(X'X)^-1X'
+    
+    hat = X %*% solve(t(X) %*% X) %*% t(X)
+    # solve(A) return A^-1.
+    
+    return(hat)
+}
+```
+
+```{r}
+# (1)
+nd <- 40
+# (2)
+set.seed(100)
+xx1 <- runif(nd, min =0, max = 10)
+xx2 <- runif(nd, min =0, max = 10)
+yy <- sin(0.2 * pi * xx1) + xx2^2 * 0.05 - xx2 * 0.4 +
+  3 + rnorm(nd, mean = 0, sd = 0.1)
+# (3)
+deg1 <- 4
+deg2 <- 2
+reg_coef <- additive_reg_coef(xx1, xx2, yy, deg1, deg2)
+reg_hat <- additive_hat_mat(xx1, xx2, deg1, deg2)
+
+reg_coef
+
+plot_hatmat(reg_hat)
+```
+
+각각의 coefficient와 hat matrix를 plot한 결과는 위와 같다.
+
+
+### 4-(d)
+
+simulation data를 이용하여 계삲나 두 경우의 hat matrix가 같음을 보이자.
+
+위에서 구한 두 hat matrix의 차이를 보이면 된다.
+
+```{r}
+max(abs(reg_hat - reg_hat_raw))
+```
+
+위와 같이, 두 hat matrix의 성분들의 차이의 절댓값중 가장 큰값이 $2.65 * 10^{-12}$로, 매우 작은 값임을 알 수 있다.
+
+따라서 두 matrix의 각 성분들의 차이는 거의 없다고 봐도 될 정도임을 보였고,
+ 
+즉, 두 hat matrix가 같음을 보였다.
+
+
+
+
+## Q5
+
+
+4장 (M) 부분의 함수는 다음과 같다. (eval = FALSE로 실행되지 않는 코드임)
+
+```{r, eval = FALSE}
+##(M) Derivation of a regression equation with the form 
+## of ACE by solving an eigenvalue problem using iterative calculation
+aceit1<-function(nd, it, npx1, npx2, npy, xx1, xx2, yy)
+{ 
+# (1)
+  yyst <- yy
+# (2)
+  powerf <- function(jj, x1)
+  {  
+    pw <- x1^jj
+    return(pw)
+  }
+  xxm1 <- apply(matrix(c(1:npx1), nrow = 1),
+    2, powerf, x1 = xx1)
+  xxm2 <- apply(matrix(c(1:npx2), nrow = 1),
+    2, powerf, x1 = xx2)
+  xxmat <- cbind(xxm1, xxm2)
+  xxmean <- apply(xxmat, 2, mean)
+  xxmat <- sweep(xxmat, 2, xxmean)
+  yymat <- apply(matrix(c(1:npy), nrow = 1),
+    2, powerf, x1 = yy)
+  yymean <- apply(yymat, 2, mean)
+  yymat <- sweep(yymat, 2, yymean)
+  hatx <- xxmat %*% solve (crossprod (xxmat)) %*% t(xxmat)
+  haty <- yymat %*% solve(crossprod(yymat)) %*% t(yymat)
+  hatyx <- haty %*% hatx
+# (3)
+  for(ii in 1 :it) { 
+    yyst <- hatyx %*% yyst
+    yyst <- (sqrt(nd) * yyst)/sqrt(sum(yyst^2))
+  }
+# (4)
+  return(yyst)
+}
+   
+```
+
+위 함수를 적당히 고쳐서, smoothing spline을 각 variable의 smoother로 사용하도록 고쳐보자.
+
+ACE에서 가정하는 모형은 $\eta(Y_i) = m_1(X_{i1}) + m_2(X_{i2}) + \epsilon_i$ 이므로,
+
+이 모형을 fit하기 위해 addtive model을 이용해서, ACE 알고리즘을 실행하면,
+
+1. 표준화된 $Y_i$들을 $Y_i^* = \frac{Y_i - \bar{Y_i}}{sd(Y_i)}$라 하고, 
+
+2. 데이터 $\{(X_{i1}, X_{i2}, Y_i^*)\}$을 사용하여 $m_1(X_{i1}) + m_2(X_{i2})$을 $y_i^*$로, $\hat{Y_i^*}$을 추정한다.
+
+3. 그 후, 데이터 $\{(Y_i, \hat{Y_i^*})\}$을 사용하여 $\eta(Y_i)$를 $\hat{y_i^*}$로,  $\tilde{Y_i^*}$ 를 추정하고,
+
+4. 이 $\tilde{Y_i^*}$을 다시 표준화해서, $Y_i^*$을 다시 정의한다.
+
+그 후 2~4를 충분히 반복해서, 최종 추정값으로 $Y_i^{*(k)}$를 사용하게 된다.
+
+
+이때, 2번을 하는 과정은 $Y^*$에 $H_X$를 곱하는것과 같고,
+
+3번을 하는 과정은 $H_X y^*$에 $H_Y$를 곱하는것과 같으므로,
+
+결국 2~3번 과정은 $H_Y H_X y^*$을 적용하는것과 같다.
+
+또한, 여기서 standard deviation을 다음과 같이 쓸수 있으므로,
+$sd(\{ \tilde{Y_i} \}) =  \frac{||\tilde{y^*}||}{\sqrt{n}}$
+
+위 코드를 통해 ACE 알고리즘이 돌아갈 수 있는것이다.
+
+
+
+이 과정을 위 함수를 수정해서 적용해보자.
+
+hatmatrix를 사용해야 하므로, smoothing spline의 hat matrix를 구해야 한다.
+
+$Y_i$측면에서 구하는것은 predictor가 1개이므로 구하기 쉽지만, $X_{i1}$ , $X_{i2}$인 case에서 smoothing spline의 hat matrix를 구하려면, 약간의 조작이 필요하다.
+
+이때, $\hat{y} = Hy$에서 $y = e_i$, $e_i$는 ith member가 1, 그 외의 성분이 모두 0 인 n x 1 vector일때, 결과로 나오는것이 $H$의 ith column이므로, 이를 이용하여 hat matrix를 구할것이다.
+
+아래 함수는 xdata1, xdata2, lambx1, lambx2를 받아 $m_1(x_1) + m_2(x_2)$에서, 각각의 $m(x)$가 smoothing spline일때, 이에 해당하는 hat matrix를 리턴해준다.
+
+이때 $m_1(x)$의 smoothing parameter는 lambx1, $m_2(x)$의 smoothing parameter는 lambx2이다.
+
+```{r}
+hat_smoothing_spline_two <- function(xdata1, xdata2, lambx1, lambx2)
+{
+    nd <- length(xdata1)
+    I_n <- diag(nd)
+    hatmat <- matrix(nrow = nd, ncol = nd)
+    
+    for(i in 1:nd) {
+        ydata <- I_n[, i]
+        
+        fit.sp1 <- smooth.spline(xdata1, ydata, lambda = lambx1, all.knots = TRUE)
+        fit.sp2 <- smooth.spline(xdata2, ydata, lambda = lambx2, all.knots = TRUE)
+        
+        pred1 <- predict(fit.sp1, xdata1)
+        pred2 <- predict(fit.sp2, xdata2)
+        
+        estim_y <- pred1$y + pred2$y
+        hatmat[,i] <- estim_y
+    }
+    return(hatmat)
+}
+```
+
+
+마찬가지로, 아래 함수는 ydata, lambda를 받아 $\eta(y)$에서, $\eta(y)$가  smoothing spline일때, 이에 해당하는 hat matrix를 리턴해준다.
+
+```{r}
+hat_smoothing_spline_one <- function(xdata, lamb)
+{
+    nd <- length(xdata)
+    I_n <- diag(nd)
+    hatmat <- matrix(nrow = nd, ncol = nd)
+    
+    for(i in 1:nd) {
+        ydata <- I_n[, i]
+        
+        fit.sp1 <- smooth.spline(xdata, ydata, lambda = lamb, all.knots = TRUE)
+        
+        pred <- predict(fit.sp1, xdata)
+        
+        estim_y <- pred$y
+        hatmat[,i] <- estim_y
+    }
+    return(hatmat)
+}
+```
+
+따라서, 위와 같이 hat matrix를 만들 수 있으므로,
+
+이제 맨 처음 도입했던 함수를 적절히 고치자.
+
+아래 함수는 data의 개수 nd, iteration 회수 it, data에 해당하는 xx1, xx2, yy를 받고,
+
+x1, x2, y에 해당되는 labmda를 받아, iteration 회수만큼 ACE 알고리즘을 돌린 결과를 리턴해준다.
+
+
+```{r}
+##(M) Derivation of a regression equation with the form 
+## of ACE by solving an eigenvalue problem using iterative calculation
+aceit1_smooth<-function(nd, it, xx1, xx2, yy, lambx1, lambx2, lamby)
+{ 
+# (1)
+  yyst <- (yy - mean(yy))/sqrt(sum((yy - mean(yy))^2)/nd) # need to calculate this!
+  
+  hatx <- hat_smoothing_spline_two(xx1, xx2, lambx1, lambx2)
+  haty <- hat_smoothing_spline_one(yy, lamby)
+  hatyx <- haty %*% hatx
+# (3)
+  for(ii in 1:it) { 
+    yyst <- hatyx %*% yyst
+    yyst <- (sqrt(nd) * yyst)/sqrt(sum(yyst^2)) 
+  }
+# (4)
+  return(yyst)
+}
+   
+```
+
+
+위와 같이 고칠 수 있다.
+
+이제, 이렇게 만들어진 object를 사용해서 test를 해보자.
+
+책에서 aceit1 부분을 test하는 코드를 약간 바꿔 사용하였다.
+
+각 lambda로는 모두 0.01을 사용하였다.
+
+
+```{r}
+nd <- 100
+set.seed(100)
+xx1 <- runif(nd, min =0, max = 10)
+xx2 <- runif(nd, min =0, max = 10)
+yy <- (sin(0.2 * pi * xx1) + xx2^2 * 0.05 - xx2 * 0.4
+  + 3 + rnorm(nd, mean =0, sd = 0.1))^2 
+# (2)         
+lambx1 <- 0.01
+lambx2 <- 0.01
+lamby <- 0.01
+# (3)
+par(mfrow = c(2, 2))
+# (4)
+for(it in 1:4) {
+  yyst <- aceit1_smooth(nd, it, xx1, xx2, yy, lambx1, lambx2, lamby)
+  plot(yy, yyst, type = "n", xlab = "y", ylab = "y*")
+  points(yy, yyst, cex = 0.7, pch =5)
+  }
+
+fit.sp1 <- smooth.spline(xx1, yyst, lambda = lambx1, all.knots = TRUE)
+fit.sp2 <- smooth.spline(xx1, yyst, lambda = lambx2, all.knots = TRUE)
+
+fit.tmd1 <- predict(fit.sp1, xx1)
+fit.tmd2 <- predict(fit.sp2, xx2)
+eyd1 <- fit.tmd1$y
+eyd2 <- fit.tmd2$y
+yhat <- eyd1 + eyd2
+plot(xx1, eyd1, type = "n", xlab = "x1", ylab = "m1(x1)")
+points(xx1, eyd1, cex = 1.2, pch =5)
+plot(xx2, eyd2, type = "n", xlab = "x2", ylab = "m2(x2)")
+points(xx2, eyd2, cex = 1.2, pch =5)
+  
+  
+```
+
+iterate 횟수에 따른 y의 추정값과, iterate가 4번 된 결과로 나온 $m_1(x_1), m_2(x_2)$의 결과가 출력되었다.
+
+
+lambda가 같아서 m1과 m2가 똑같은 형태가 나오는데, 
+
+
+만약, lambda를 바꾼다면 다음과 같이 fit되는것을 볼 수 있다.
+
+x1의 lambda를 0.001로, x2의 lambda를 0.03, y의 lambda를 0.003으로 주었다.
+
+```{r}
+nd <- 100
+set.seed(100)
+xx1 <- runif(nd, min =0, max = 10)
+xx2 <- runif(nd, min =0, max = 10)
+yy <- (sin(0.2 * pi * xx1) + xx2^2 * 0.05 - xx2 * 0.4
+  + 3 + rnorm(nd, mean =0, sd = 0.1))^2 
+# (2)         
+lambx1 <- 0.001
+lambx2 <- 0.03
+lamby <- 0.003
+# (3)
+par(mfrow = c(2, 2))
+# (4)
+for(it in 1:4) {
+  yyst <- aceit1_smooth(nd, it, xx1, xx2, yy, lambx1, lambx2, lamby)
+  plot(yy, yyst, type = "n", xlab = "y", ylab = "y*")
+  points(yy, yyst, cex = 0.7, pch =5)
+  }
+
+fit.sp1 <- smooth.spline(xx1, yyst, lambda = lambx1, all.knots = TRUE)
+fit.sp2 <- smooth.spline(xx1, yyst, lambda = lambx2, all.knots = TRUE)
+
+fit.tmd1 <- predict(fit.sp1, xx1)
+fit.tmd2 <- predict(fit.sp2, xx2)
+eyd1 <- fit.tmd1$y
+eyd2 <- fit.tmd2$y
+yhat <- eyd1 + eyd2
+plot(xx1, eyd1, type = "n", xlab = "x1", ylab = "m1(x1)")
+points(xx1, eyd1, cex = 1.2, pch =5)
+plot(xx2, eyd2, type = "n", xlab = "x2", ylab = "m2(x2)")
+points(xx2, eyd2, cex = 1.2, pch =5)
+```
+
+두 m의 형태가 서로 다름을 볼 수 있다.
+

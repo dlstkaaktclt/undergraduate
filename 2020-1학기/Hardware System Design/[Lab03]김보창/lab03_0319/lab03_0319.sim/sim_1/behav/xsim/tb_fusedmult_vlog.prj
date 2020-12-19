@@ -1,0 +1,10 @@
+# compile verilog/system verilog design source files
+verilog xil_defaultlib  \
+"../../../../lab03_0319.srcs/sim_1/new/my_fusedemult.v" \
+"../../../../lab03_0319.srcs/sim_1/new/tb_fusedmult.v" \
+
+# compile glbl module
+verilog xil_defaultlib "glbl.v"
+
+# Do not sort compile order
+nosort

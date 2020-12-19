@@ -1,0 +1,501 @@
+---
+title: "326.212 Homework 1"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("tidyverse")
+```
+
+
+
+## 2014-16757
+## 컴퓨터공학부 김보창
+
+### Textbook 3.2.4
+
+#### Problem 1. Run ggplot(data = mpg). What do you see?
+
+```{r}
+ggplot(data = mpg)
+```
+
+아무것도 보이지 않는다. 어떤 데이터를 쓸것인지만 지정하고, 그림을 어떻게 그릴지를 지정하지 않았기 때문에 아무것도 출력되지 않는다.
+
+
+#### Problem 5. What happens if you make a scatterplot of class vs drv? Why is the plot not useful?
+
+```{r}
+ggplot(data = mpg) + geom_point(mapping = aes(x = class, y = drv))
+```
+
+위와같은 그래프가 나타난다. 이 플롯이 유용하지 않은 이유는, 자동차의 클래스와 구동방식이 범주형 데이터인데다 종류가 적어서, 서로간의 상관관계를 알기 힘들기 때문이다.
+
+
+### Textbook 3.3.1
+
+#### Problem 1. What’s gone wrong with this code? Why are the points not blue?
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy, color = "blue"))
+```
+
+mapping argument의 aes에 지정된 color는 각 점의 색깔을 파란색으로 만드는것이 아니라, data를 표현하는 점의 색깔을 데이터의 종류에 따라 매핑시키는 역할을 하게 된다. 따라서 이렇게 쓰면 모든 데이터들이 "blue" 라는 하나의 categorical 속성을 가지는 것이라고 생각되게 되고, 따라서 파란색이 아니라 임의의 색깔로 매핑되게 된다.
+이를 고치려면 다음과 같이 mapping = aes(x = displ, y = hwy), color = "blue" 로 고쳐야한다.
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy), color = "blue")
+```
+
+#### Problem 5. What does the stroke aesthetic do? What shapes does it work with? (Hint: use ?geom_point)
+
+geom_point의 help document에 의하면, stroke의 경우 geom_point의 argument로 사용되어, shape가 21~25일 경우 점의 테두리 두께를 결정하는데에 사용된다.
+
+예를들어, 다음과 같이 사용할 수 있다.
+
+size = 5, stroke = 2의 경우
+```{r}
+ggplot(data = mpg) + geom_point(mapping = aes(x = displ, y = hwy), shape =21, color = "red", size = 5, fill = "black", stroke = 2)
+```
+
+size = 5, stroke = 10의 경우
+```{r}
+ggplot(data = mpg) + geom_point(mapping = aes(x = displ, y = hwy), shape =21, color = "red", size = 5, fill = "black", stroke = 10)
+```
+
+
+
+### Textbook 3.5.1
+
+#### Problem 2. What do the empty cells in plot with facet_grid(drv ~ cyl) mean? 
+
+facet_grid(drv ~ cyl) 에서 나타나는 빈 셀들은, 해당하는 drv, cyl값을 가지는 데이터가 없음을 나타낸다.
+
+예를들어, 다음과 같이 그래프를 그리면
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy)) + facet_grid(drv ~ cyl)
+```
+
+drv = 4, cyl = 5의 경우에 해당하는 그래프가 비어있는데, 이 말은 drv = 4, cyl = 5인 데이터가 존재하지 않음을 나타낸다.
+
+#### How do they relate to this plot?
+
+```{r}
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = drv, y = cyl))
+```
+
+따라서 x = drv, y = cyl로 주고 그래프를 그렸을 경우, drv = 4, cyl = 5에 해당하는 데이터가 존재하지 않아, 점이 찍히지 않았음을 알 수 있다.
+
+#### Problem 6. When using facet_grid() you should usually put the variable with more unique levels in the columns. Why?
+
+```{r}
+ggplot(data = mpg) + geom_point(mapping = aes(x = displ, y = hwy)) + facet_grid(drv ~ cty)
+```
+
+cty가 facet_grid의 column일때
+
+
+```{r}
+ggplot(data = mpg) + geom_point(mapping = aes(x = displ, y = hwy)) + facet_grid(cty ~ drv)
+```
+
+drv가 facet_grid의 column일떄
+
+
+위와 같이 두가지 방법으로 facet_grid를 이용하여 facet을 사용한 그래프를 그렸을때, drv보다 cty에 더 다양한 종류의 데이터가 존재함을 알 수 있다.
+
+왜 column부분에 더 많은 종류의 데이터가 존재하는 변수를 넣어야하냐면, plot을 그릴때 세로방향은 상대적으로 확장이 용이한 반면, 가로방향의 경우는 확장이 힘드므로 column에 더 많은 종류의 데이터가 존재하는 변수가 들어가도록 하여 그래프를 더 보기좋게 만들수 있다.
+
+
+### Textbook 3.6.1
+
+#### Problem 2. Run this code in your head and predict what the output will look like. Then, run the code in R and check your predictions.
+
+
+ggplot에서 data를 mpg, x축을 displ, y축을 drv로 매핑했고 color를 drv에 따라 설정하도록 했다., geom_point와 geom_smooth로 데이터를 표현하기 때문에 geom_point에서 데이터에 해당하는 좌표에 점이 찍히고, geom_smooth에서 데이터에 해당하는 점들에 해당하는 추세선이 그려질것임을 알 수 있다. 또한 se = FALSE이기 때문에 신뢰구간에 해당하는 부분은 그려지지 않을것이라 예측할 수 있다. 또한 drv에 따라 color를 다르게 설정했으므로, 점과 선들의 색이 drv값에 따라 다를것이라 예측할 수 있다.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy, color = drv)) + 
+  geom_point() + 
+  geom_smooth(se = FALSE)
+```
+
+실제 코드가 실행되었을때 출력되는 그래프도 예측처럼 나왔음을 알 수 있다.
+
+
+#### Problem 6. Recreate the R code necessary to generate the following graphs.
+
+
+##### #1.
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + geom_point(size = 4) + geom_smooth(se = FALSE)
+```
+
+##### #2.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + geom_point(size = 4) + geom_smooth(mapping = aes(group = drv), se = FALSE)
+```
+
+##### #3.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy, color = drv)) + geom_point(size = 4) + geom_smooth(se = FALSE)
+```
+
+##### #4.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + geom_point(mapping = aes(color = drv), size = 4) + geom_smooth(se = FALSE)
+```
+
+##### #5.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + geom_point(mapping = aes(color = drv), size = 4) + geom_smooth(mapping = aes(linetype = drv), se = FALSE)
+```
+
+##### #6.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + geom_point(size = 8, color = "white") + geom_point(mapping = aes(color = drv), size = 4)
+```
+
+혹은
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + geom_point(mapping = aes(fill = drv), shape = 21, size = 4, stroke = 4, color = "white")
+```
+
+
+
+### Textbook 3.7.1
+
+#### Problem 1. What is the default geom associated with stat_summary()? How could you rewrite the previous plot to use that geom function instead o f the stat function?
+
+geom_pointrange()가 default로 설정되어 있다.
+
+```{r}
+ggplot(data = diamonds) +
+geom_pointrange(
+    mapping = aes(x = cut, y = depth), stat = "summary", fun.ymin = min,
+fun.ymax = max, fun.y = median)
+```
+
+위의 코드를 이용하면 똑같은 결과를 만들어 낼 수 있다.
+
+#### Problem 5. In our proportion bar chart, we need to set group = 1. Why? In other words what is the problem with these two graphs?
+
+** 해당 문제에 대한 해답을 html로 변환할때, r studio에 설치되어있는 pandoc 2.6의 경우 계속해서 오류가 일어났었습니다.
+https://github.com/rstudio/rstudio/issues/3661
+를 참조해서 pandoc version을 2.7.1로 업데이트 하면 정상적으로 변환됩니다.
+
+
+만약 group = 1 (혹은 group = dummy)가 설정되지 않으면, prop 계산이 전체 data에서 fair, good.. 이 차지하는 비중이 아니라, fair 내부에서 fair, good 내부에 good.. 즉, default 그루핑은 x축 기준인 cut을 기준으로 이루어지기 때문에 출력되는 그래프의 prop 값들이 모두 1로 출력되게 된다.
+
+
+ 따라서 이러한 default grouping을 해제하기 위해 group 에 더미값을 할당해서 전체 데이터에 대해 prop값을 계산하도록 해야한다.
+ 
+```{r}
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, y = ..prop..))
+```
+
+ 
+ 위 코드의 경우, 위에서 설명한대로 default grouping때문에 cut으로 grouping이 되어서 그래프의 높이가 1로 똑같아지고, 따라서 다음과 같이 dummy group을 가지고록 코드를 바꾸면 제대로 동작한다.
+ 
+```{r}
+ggplot(data = diamonds) + 
+    geom_bar(mapping = aes(x = cut, y = ..prop.., group = 1))
+```
+
+
+내부 메커니즘이 작동하는 자세한 내용은 다음과 같이 ggplot_build를 통해 확인할 수 있다.
+
+y = ..prop..의 경우 geom_bar의 default stat인 stat_count()의 prop에 저장된 값을 y값으로 가져와서 사용하겠다는 것이므로,
+
+```{r}
+plt <- ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut))
+plt_b <- ggplot_build(plt)
+knitr::kable(plt_b$data[[1]])
+```
+
+에서는 prop과 group column을 보면, 모두 그룹이 제각각이고 그에따라 prop의 값도 1로 계산되었음을 알 수 있고,
+
+```{r}
+plt <- ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, group = 1))
+plt_b <- ggplot_build(plt)
+knitr::kable(plt_b$data[[1]])
+```
+
+에서는 prop과 group column을 보면, 모두 그룹이 1로 지정되어있고 그에따라 prop의 값도 제각각 계산되었음을 확인할 수 있다.
+
+
+
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, fill = color, y = ..prop..))
+```
+
+위 코드의 경우에는 문제가 더 심각한데, x = cut에다 fill = color로 지정한 경우에는 그루핑이 cut 뿐만 아니라 color에 따라서도 그루핑이 되기때문에 (cut 종류 * color 종류)개의 그룹이 생기고, 그 그룹 각각에서의 prop은 모두 1이기때문에 prop의 높이가 7인 그래프 5개가 나오게 된다.
+
+
+```{r}
+plt <- ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, fill = color, y = ..prop..))
+plt_b <- ggplot_build(plt)
+knitr::kable(plt_b$data[[1]])
+```
+
+group의 종류가 무지막지하게 많다.
+
+
+따라서 이를 해결하기 위해서는 그루핑을 다시 해줘야만 하는데, group argument를 통해 그루핑을 하여 문제를 해결하기에는 간단하게 해결되지가 않는다. group = 1과 같이 더미그룹을 쓰거나, group = color, group = cut과 같이 특정 데이터로 그루핑해봐야 우리가 원하듯이 각 cut에따라, 그리고 각 cut 내부에서 color에 따라 차지하는 비율을 통한 그래프는 나오지 않는다.
+
+```{r}
+plt <- ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, fill = color, y = ..prop.., group = 1))
+plt_b <- ggplot_build(plt)
+knitr::kable(plt_b$data[[1]])
+```
+
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, fill = color, y = ..prop.., group = 1))
+```
+
+group = 1의 경우, 전체 그루핑이 1이라 의미가 없음.
+
+
+```{r}
+plt <- ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, fill = color, y = ..prop.., group = color))
+plt_b <- ggplot_build(plt)
+knitr::kable(plt_b$data[[1]])
+
+```
+
+```{r}
+plt <- ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, fill = color, y = ..prop.., group = color))
+plt_b <- ggplot_build(plt)
+knitr::kable(plt_b$data[[1]])
+```
+
+group = color를 통해 그루핑 해줄경우, 문제가 해결되었다고 생각하기가 쉬우나, 그루핑이 cut 내부에서 color가 차지하는 비율을 고려하지 않고, 전체 자료에서 각 컬러가 차지하는 비율을 통해 prop값을 가지게 되기 때문에, 모든 막대그래프의 color 비율이 똑같아지게 된다.
+
+실제로 x = 1의 첫 두 row의 count 값과 prop의 비율을 보면, 1번row의 count가 더 작음에도 불구하고 prop이 더 높게 잡힌것이 보인다.
+
+
+따라서 이러한 문제를 해결하기 위해서는, 그루핑에 따라 문제가 생기는 y = ..prop.. 값을 사용하는것이 아니라, ..count.. 값을 이용하여 다음과 같이 그래프를 그려야만 한다.
+
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(aes(x = cut, y = ..count.. / sum(..count..), fill = color))
+```
+
+
+### Textbook 3.8.1 
+
+#### Problem 1. What is the problem with this plot? How could you improve it?
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) + 
+  geom_point()
+```
+
+이 plot에서의 문제는, 전체 데이터의 개수보다 (cty, hwy)로 만들어 질 수 있는 조합의 수가 적기때문에 plot에서 실제 데이터의 개수보다 적은 점들이 표현되어 데이터셋의 크기가 작아보일수 있다는 것이다. 
+즉, overplotting의 문제가 생긴다.
+
+따라서 이를 고치기위해, 다음과 같이 데이터의 실제위치에 랜덤노이즈를 추가해주는 jittering을 통해 실제 데이터의 개수를 왜곡하지 않도록 그래프를 그려준다.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) + 
+  geom_point(position = "jitter")
+```
+
+
+#### Problem 3. Compare and contrast geom_jitter() with geom_count().
+
+geom_point()의 변종들로,
+geom_jitter()와 geom_count() 둘다 overplotting 문제가 있을때 사용한다.
+
+다만 overplotting 된 데이터를 처리하는 방식에서 차이가 발생하는데,
+
+geom_jitter()의 경우 데이터에 랜덤 노이즈를 주어 데이터가 겹쳐보이지 않게 하는 반면,
+
+geom_count()의 경우 같은 위치에 표시되는 데이터의 개수를 세어 plot에 표기해주어 overplotting을 해결한다.
+
+예를 들어, overplotting이 존재하는 다음 예를 보자.
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) + geom_point()
+```
+
+이를 geom_count()로 해결하면
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) + geom_count()
+```
+
+위와같이 좌표에 존재하는 데이터의 개수를 plot에 나타내주고,
+
+geom_jitter()의 경우는
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) + geom_jitter()
+```
+
+위와같이 데이터에 랜덤 노이즈를 주어 overplotting을 해결하는것을 볼 수 있다.
+
+### Textbook 3.9.1
+
+#### Problem 1. Turn a stacked bar chart into a pie chart using coord_polar().
+
+stacked bar chart는 다음과 같이 데이터의 값이 쌓여있는 chart를 말한다.
+
+```{r}
+ggplot(data = diamonds) + geom_bar(mapping = aes(x = cut, fill = color), show.legend = FALSE, width = 1) + theme(aspect.ratio = 1) + labs(x = NULL, y = NULL)
+```
+
+
+이 chart를 pie chart로 바꾸는것은 coord_polar()를 통해 좌표계를 극좌표계로 바꿔주면 된다.
+
+다음과 같이 실행하면 된다.
+
+```{r}
+ggplot(data = diamonds) + geom_bar(mapping = aes(x = cut, fill = color), show.legend = FALSE, width = 1) + theme(aspect.ratio = 1) + labs(x = NULL, y = NULL) + coord_polar()
+```
+
+
+#### Problem 4. What does the plot below tell you about the relationship between city and highway mpg? Why is coord_fixed() important? What does geom_abline() do?
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) +
+  geom_point() + 
+  geom_abline() +
+  coord_fixed()
+```
+
+위 plot은 mpg에서 city와 highway 간에 대략적으로 일차함수적인 비례관계가 존재함을 보이고 있다.
+
+coord_fixed()의 역할은 ratio argument로 y축의 비율/x축의 비율을 인자로 받아서 그에 맞게 그래프를 그려주는 역할을 하고, (default ratio는 1)
+geom_abline()은 y절편, 기울기등을 받아서 추세선을 그려주는 역할을 한다. (default y절편은 0, 기울기는 1)
+
+coord_fixed()를 이용해 x축과 y축의 비율이 정확하게 유지되지 않는다면, 데이터를 해석하는데 왜곡이 일어날 수 있고, geom_abline()으로 추세선을 그렸을때 추세선의 기울기가 정확하지 않게 표현될 수 있으므로,  coord_fixed()를 이용해서 x축과 y축의 비율을 일정하게 유지해주는것이 중요하다.
+
+### Textbook 6.3
+
+#### Problem 2. What other common mistakes will RStudio diagnostics report? Read https://support.rstudio.com/hc/en-us/articles/205753617-Code-Diagnostics to find out.
+
+RStidio diagnostics가 알려주는 흔한 오류들에는 여러가지가 있는데, 예를 들어 다음과 같은 것들이 존재한다.
+
+1. 함수의 argument를 빼먹거나, 잘못된 argument를 집어넣거나, 필요 이상의 argument를 집어넣는 경우
+
+1. scope에 variable의 정의가 없는경우.
+
+1. 변수가 선언되었지만 쓰이지 않은경우.
+
+등이 존재한다.
+
+
+### Textbook 28.2.1
+
+#### Problem 1. Create one plot on the fuel economy data with customised title, subtitle, caption, x, y, and colour labels.
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_smooth(se = FALSE) +
+  labs(
+    title = "Fuel efficiency generally decreases with engine size",
+    subtitle = "Two seaters (sports cars) are an exception because of their light weight",
+    caption = "Data from fueleconomy.gov",
+    x = "engine displacement, in litres",
+    y = "highway miles per gallon",
+    colour = "\"type\" of car"
+  )
+```
+
+
+### Textbook 28.4.4
+
+#### Problem 4. Use override.aes to make the legend on the following plot easier to see.
+
+```{r}
+ggplot(diamonds, aes(carat, price)) +
+  geom_point(aes(colour = cut), alpha = 1/20)
+```
+
+아래와 같이 고치면 된다.
+
+```{r}
+ggplot(diamonds, aes(carat, price)) +
+  geom_point(aes(colour = cut), alpha = 1/20) +
+  guides(color = guide_legend(override.aes = list(alpha = 1)))
+```
+
+### Extra questions
+
+#### Problem 1. Write an R script that when run performs the following:
+
+##### assign $x=5$ and $y=6$
+
+```{r}
+x <- 5
+y <- 6
+```
+
+##### calculate $\ln(x+y)$
+
+```{r}
+(log(x + y))
+```
+
+
+##### calculate $\log_{10}(xy/2)$
+
+```{r}
+(log10(x*y/2))
+```
+
+##### calculate $\sqrt[3]{x}+2\sqrt[4]{y}$
+
+```{r}
+(x^(1/3)+2*y^(1/4))
+```
+
+##### calculate $10^{x−y}+e^{x+y}$
+
+```{r}
+(10^(x-y)+exp(x+y))
+```
+
+
+
+#### Problem 2. Why does the following code not work?
+
+```{r eval=FALSE}
+my_variable <- 123
+  my_varlable
+```
+
+my_variable이라는 변수에 123이라는 수를 할당하고나서, 다음에 호출하는 변수는
+my_varlable이라는, 선언한적이 없는 다른 변수이므로 오류가 발생한다. 이를 작동시키기 위해선
+
+```{r}
+my_variable <- 123
+  my_variable
+```
+
+과 같이 코드를 고쳐야한다.

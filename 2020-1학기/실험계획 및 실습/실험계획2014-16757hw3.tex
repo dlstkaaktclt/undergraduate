@@ -1,0 +1,368 @@
+\documentclass{article}
+\usepackage{bm}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{mdwlist}
+\usepackage[colorlinks=true]{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+\geometry{headheight=2in}
+\geometry{top=2in}
+\usepackage{palatino}
+%\renewcommand{\rmdefault}{palatino}
+\usepackage{fancyhdr}
+\usepackage{kotex}
+%\pagestyle{fancy}
+\rhead{}
+\lhead{}
+\chead{%
+  {\vbox{%
+      \vspace{2mm}
+      \large
+      실험 계획 및 실습
+      \\[4mm]
+      Homework \#(\textbf{3})\\
+      \textbf{2014-16757 김보창}
+    }
+  }
+}
+\graphicspath{
+    {C:/image/}
+}
+
+\usepackage[svgnames]{xcolor}
+\usepackage{listings}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\lstset{ 
+  language=R,                     % the language of the code
+  basicstyle=\ttfamily, % the size of the fonts that are used for the code
+  numbers=left,                   % where to put the line-numbers
+  numberstyle=\tiny\color{blue},  % the style that is used for the line-numbers
+  stepnumber=1,                   % the step between two line-numbers. If it is 1, each line
+                                  % will be numbered
+  numbersep=5pt,                  % how far the line-numbers are from the code
+  backgroundcolor=\color{white},  % choose the background color. You must add \usepackage{color}
+  showspaces=false,               % show spaces adding particular underscores
+  showstringspaces=false,         % underline spaces within strings
+  showtabs=false,                 % show tabs within strings adding particular underscores
+  frame=single,                   % adds a frame around the code
+  rulecolor=\color{black},        % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. commens (green here))
+  tabsize=2,                      % sets default tabsize to 2 spaces
+  captionpos=b,                   % sets the caption-position to bottom
+  breaklines=true,                % sets automatic line breaking
+  breakatwhitespace=false,        % sets if automatic breaks should only happen at whitespace
+  keywordstyle=\color{RoyalBlue},      % keyword style
+  commentstyle=\color{YellowGreen},   % comment style
+  stringstyle=\color{ForestGreen}      % string literal style
+} 
+
+
+
+\usepackage{paralist}
+\usepackage{todonotes}
+\setlength{\marginparwidth}{2.15cm}
+
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes,backgrounds}
+
+\begin{document}
+\pagestyle{fancy}
+
+
+%% Q1
+\section{Q1} 
+
+4.7
+
+여기서 모형은 
+$y_{ij} = \mu + \tau_i + \beta_j + \epsilon_{ij}$, $i = 1...4, j = 1, 2... 4$, $\sum_{i=1}^4 \tau_i = 0 $, $\sum_{j=1}^4 \beta_j = 0 $으로 놓을 수 있다.
+($\epsilon_{ij}  \overset{\text{i.i.d.}}{\sim} N(0, \sigma^2)$)
+
+treatment는 tip의 종류, block은 coupon이 된다.
+
+\subsection{1-(a)}
+
+데이터를 분석하기위해, 먼저 각 treatment(여기서는 tip) 에 따른 유의미한 차이가 있는지 알아보기 위한 test를 실시한다.
+
+$$H_0 : \tau_i = 0 , \forall i = 1, 2, 3, 4$$ 
+$$H_1 :  \tau_i \neq 0, \exists i$$
+
+로 귀무가설과 대립가설을 세우고, two factor ANOVA test를 진행하자.
+
+우리는 $H_0$하에서 $\frac{MS_{Trt}}{MS_E} \sim F_{a-1, (a-1)(b-1)} $임을 알고 있으므로,
+
+$F_0 = \frac{MS_{Trt}}{MS_E}$ 로 두고,  유의수준 $\alpha$에서 $F_0 > F_{a-1, (a-1)(b-1)}(\alpha)$이면 귀무가설을 기각할 것이다.
+
+이를 구하기 위해 $F_0$의 값을 구할것인데, 계산을 쉽게 하기 위해 R을 이용할 것이다.
+
+다음 R코드를 이용하여 $F_0$의 값을 구한다.
+
+
+\begin{lstlisting}[language=R]
+tip <- as.factor(c(rep(1,4), rep(2,4), rep(3,4), rep(4,4)))
+coupon <- as.factor(c(rep(c(1,2,3,4),4)))
+y <- c(9.3,9.4,9.6,10.0,9.4,9.3,9.8,9.9,9.2,9.4,9.5,9.7,9.7,9.6,10.0,10.2)
+df <- data.frame(tip, coupon, y)
+result <- aov(y ~ tip + coupon, data = df)
+summary(result)
+\end{lstlisting}
+
+데이터를 입력해주고, tip, coupon이라는 벡터에 각 데이터가 어떤 treatment와 block의 데이터인지 명시해준다.
+
+그후, data.frame 함수를 이용해 data frame으로 만들어주고, 
+
+aov와 summary함수를 이용하여 결과를 출력하면 다음과 같은 값이 나온다.
+
+\begin{center}
+    \includegraphics{hw3_1_df.jpg}
+df에 저장된 형태.
+\end{center} 
+
+\begin{center}
+    \includegraphics{hw3_1_anova.jpg}
+anova 분석 결과.
+\end{center} 
+
+이를 통해, 여기서의 $MS_E$의 값은 0.00889, $MS_{Trt}$의 값은 0.12833임을 알 수 있고,
+
+$F_0 = 14.44$임을 알 수 있다. 또한 이때의 P-value가  $0.000871$임을 알 수 있다.
+
+따라서, $\alpha = 0.05$로 택했을때, P-value가 0.05보다 작으므로 귀무가설을 기각할 수 있다.
+
+즉, tip에따라 유의미한 차이가 있다는 결론을 내리게 된다.
+
+마찬가지로, block effect에 대해서도 유의미한 차이가 있는지를 알아볼 수 있는데,
+
+$$H_0 : \beta_j = 0 , \forall j = 1, 2, 3, 4$$ 
+$$H_1 :  \beta_j \neq 0, \exists j$$
+로 가설을 세웠을때, $H_0$하에서 $\frac{MS_{B}}{MS_E} \sim F_{b-1, (a-1)(b-1)} $임을 알고 있으므로,
+(여기서 $a = 4$, $b = 4$임)
+
+$F_0 = \frac{MS_{B}}{MS_E}$ 로 두고,  유의수준 $\alpha$에서 $F_0 > F_{b-1, (a-1)(b-1)}(\alpha)$이면 귀무가설을 기각할 것이다.
+ 
+이 test의 결과는 위의 anova에서 구할 수 있다. $MS_{B}$의 값이 0.275, $MS_E$는 위와 같다.
+
+이때의 $F_0 = 30.94$임을 알 수 있고, 이때의 P-value가 $4.52 * 10^{-5}$임을 알 수 있으므로,
+
+$\alpha = 0.05$로 택했을때, P-value가 0.05보다 작으므로 귀무가설을 기각할 수 있다.
+
+즉, coupon에따라 유의미한 차이가 있다는 결론을 내리게 된다. \\
+
+
+
+\subsection{1-(b)}
+
+Fisher의 LSD 방법을 적용해서 tip별로 차이가 있는지를 구하자.
+
+i번째 tip, j번째 tip에 대해 다음과 같이 가설을 세우고,
+
+$u_i = u + \tau_i$
+
+$$H0 : u_i = u_j $$
+$$H1 : u_i \neq u_j $$
+
+i번째 tip과 j번째 tip에 의한 효과가 다음과 같은 조건을 만족할때 유의미한 차이가 있다고 할 것이다.
+
+$$|\bar{y_{i.}} - \bar{y_{j.}}| > LSD = t_{(a-1)(b-1)}(\frac{\alpha}{2})) \sqrt{\frac{2 MS_E}{b}}$$
+
+$\alpha = 0.05$일때, 이제 이를 구하는 R 코드를 작성해보면
+
+
+\begin{lstlisting}[language=R]
+MSE <- summary(result)[[1]][[3]][3]
+means <- aggregate(y ~ tip, df, mean)
+y1_mean <- means[[2]][1]
+y2_mean <- means[[2]][2]
+y3_mean <- means[[2]][3]
+y4_mean <- means[[2]][4]
+mean_diff <- abs(c(y1_mean - y2_mean, y1_mean - y3_mean, y1_mean - y4_mean, y2_mean - y3_mean, y2_mean - y4_mean, y3_mean - y4_mean))
+
+LSD <- qt(0.975, 9) * sqrt(2 * MSE / 4)
+LSD
+mean_diff
+mean_diff > LSD
+\end{lstlisting}
+
+\begin{center}
+    \includegraphics{hw3_1_fisher.jpg}
+fisher LSD 적용 결과. 
+\end{center} 
+
+결과적으로, $\alpha = 0.05$에서 $u_1 \neq u_4$, $u_2 \neq u_4$, $u_3 \neq u_4$의 결과를 얻었다.
+
+즉, tip이 각각 (1,4), (2,4), (3,4)에서의 test에서 $\alpha = 0.05$에서 귀무가설이 기각됨을 알 수 있다.
+
+또한, tip이 (2,3)인 test에서는 mean\_diff의 값이 LSD의 값과 거의 비슷하므로, 이들이 확실히 차이가 나지 않는다고 판정하기는 약간 어렵다고 할 수 있다.
+
+
+\subsection{1-(c)}
+
+residual에 대한 분석을 하기 위해, 실습시간에 배운 R함수를 이용한다.
+
+\begin{lstlisting}[language=R]
+opar <- par(mfrow=c(2,2),cex=.8)
+plot(aov(y ~ tip + coupon, data = df))
+\end{lstlisting}
+
+첫줄을 통해 그래프를 출력할 환경을 지정해주고,
+두번째줄 plot을 이용하여 그래프를 출력하게 하였다.
+
+결과는 다음과 같다.
+
+\begin{center}
+    \includegraphics{hw3_1_reso.jpg}
+\end{center} 
+
+왼쪽 위 그래프를 보면, fitted value와 residual로 그래프를 그렸을때, 특정 경향성이 나타나지 않는것을 알 수 있다. 
+
+따라서 우리 모형이 데이터를 잘 표현한다고 말할 수 있고,
+
+오른쪽 아래 그래프를 봐도 factor level에 따라 residual의 차이가 거의 없으므로
+
+등분산 가정을 위반하지 않음을 알 수 있다.
+
+오른쪽 위 그래프, normal QQ 그래프를 살펴보면, residual의 경향이 직선으로 정렬된것을 보아 normality 가정을 위반하지 않음을 알 수 있다.
+
+결론적으로, 독립, 등분산, 정규분포 가정이 알맞다고 할 수 있어
+
+따라서 $\epsilon_{ij} \sim N(0,\sigma^2)$이라는 우리의 가정에 문제가 없음을 알 수 있다.
+
+
+  
+
+
+
+
+
+\section{Q2} 
+
+4.23
+
+문제에서 Latin square 디자인을 이용하여 실험을 했을때의 모델은 다음과 같다.
+
+$$y_{ijk} = \mu + \alpha_i + \tau_j + \beta_k + \epsilon_{ijk} $$, $i = 1...4, j = 1, 2... 4, k = 1, 2... 4$ ,$\sum_{i=1}^4 \alpha_i = 0 $, $\sum_{j=1}^4 \tau_j = 0 $, $\sum_{k=1}^4 \beta_k = 0 $
+
+($\epsilon_{ijk} \overset{\text{i.i.d.}}{\sim} N(0, \sigma^2)$)
+
+여기서, $\alpha_i$는 assembly order에 따른 row effect factor, $\tau_j$는 assembly method에 따른 treatment effect factor,
+$\beta_k$는 operator에 따른 column effect factor다.
+
+이제, 이를 분석하기 위해, 각 treatment(여기서는 assembly method) 에 따른 유의미한 차이가 있는지 알아보기 위한 test를 실시한다.
+
+$$H_0 : \tau_j = 0 , \forall j = 1, 2, 3, 4$$ 
+$$H_1 :  \tau_j \neq 0, \exists j$$
+
+로 귀무가설과 대립가설을 세우고, test를 진행하자.
+
+우리는 $H_0$하에서 $\frac{MS_{Trt}}{MS_E} \sim F_{p-1, (p-2)(p-1)} $임을 알고 있으므로, (p = 4)
+
+$F_0 = \frac{MS_{Trt}}{MS_E}$ 로 두고,  유의수준 $\alpha$에서 $F_0 > F_{p-1, (p-2)(p-1)}(\alpha)$이면 귀무가설을 기각할 것이다.
+
+이를 구하기 위해 $F_0$의 값을 구할것인데, 계산을 쉽게 하기 위해 R을 이용할 것이다.
+
+다음 R코드를 이용하여 $F_0$의 값을 구한다.
+
+
+\begin{lstlisting}[language=R]
+order <- as.factor(c(rep(1,4), rep(2,4), rep(3,4), rep(4,4)))
+oper <- as.factor(rep(c(1,2,3,4),4))
+method <- as.factor(c('C','D','A','B','B','C','D','A','A','B','C','D','D','A','B','C'))
+y <- c(10,14,7,8,7,18,11,8,5,10,11,9,10,10,12,14)
+df2 <- data.frame(order, oper, method, y)
+df2
+g <- lm(y ~ order + oper + method,data = df2) 
+anova(g)
+\end{lstlisting}
+
+데이터를 입력해주고, order, oper, method라는 벡터에 각 데이터의 order, operator, method를 명시해준다.
+
+그후, data.frame 함수를 이용해 data frame으로 만들어주고, 
+
+lm함수와 anova함수를 이용하여 latin square design에서 anova test를 진행하면 다음과 같은 결과가 나온다.
+
+\begin{center}
+    \includegraphics{hw3_2_df.jpg}
+df에 저장된 형태.
+\end{center} 
+
+\begin{center}
+    \includegraphics{hw3_2_anova.jpg}
+anova 분석 결과.
+\end{center} 
+
+이를 통해, 여기서의 $MS_E$의 값은 1.75, $MS_{Trt}$의 값은 24.16임을 알 수 있고,
+
+$F_0 = 13.81$임을 알 수 있다. 또한 이때의 P-value가  $0.004213$임을 알 수 있다.
+
+따라서, $\alpha = 0.05$로 택했을때, P-value가 0.05보다 작으므로 귀무가설을 기각할 수 있다.
+
+즉, method에 따라 유의미한 차이가 있다는 결론을 내리게 된다.
+
+마찬가지로, order, operator에 대해서도 유의미한 차이가 있는지를 알아볼 수 있다.
+
+먼저 order의 경우,
+
+$$H_0 : \alpha_i = 0 , \forall i = 1, 2, 3, 4$$ 
+$$H_1 :  \alpha_i \neq 0, \exists i$$
+로 가설을 세웠을때, $H_0$하에서 $\frac{MS_{Rows}}{MS_E} \sim F_{p-1, (p-2)(p-1)} $임을 알고 있으므로,
+(여기서 $p = 4$)
+
+$F_0 = \frac{MS_{Rows}}{MS_E}$ 로 두고,  유의수준 $\alpha$에서 $F_0 > F_{p-1, (p-2)(p-1)}(\alpha)$이면 귀무가설을 기각할 것이다.
+ 
+이 test의 결과는 위의 anova에서 구할 수 있다. $MS_{Rows}$의 값이 6.1667, $MS_E$는 위와 같다.
+
+이때의 $F_0 = 3.52$임을 알 수 있고, 이때의 P-value가 $0.088519$임을 알 수 있으므로,
+
+$\alpha = 0.05$로 택했을때, P-value가 0.05보다 크므로 귀무가설을 기각할 수 없다.
+
+즉, assembly order에 따른 유의미한 차이가 있다고 말하기 어렵다. 
+
+물론, p-value가 작은편이라 $\alpha$가 커지면 귀무가설을 기각할 수 있을것이고, 이때는 유의미한 차이가 있다고 말할 수 있을것이다.
+
+operator의 경우,
+
+$$H_0 : \beta_k = 0 , \forall k = 1, 2, 3, 4$$ 
+$$H_1 :  \beta_k \neq 0, \exists i$$
+로 가설을 세웠을때, $H_0$하에서 $\frac{MS_{Columns}}{MS_E} \sim F_{p-1, (p-2)(p-1)} $임을 알고 있으므로,
+(여기서 $p = 4$)
+
+$F_0 = \frac{MS_{Columns}}{MS_E}$ 로 두고,  유의수준 $\alpha$에서 $F_0 > F_{p-1, (p-2)(p-1)}(\alpha)$이면 귀무가설을 기각할 것이다.
+ 
+이 test의 결과 역시 위의 anova에서 구할 수 있다. $MS_{Columns}$의 값이 17.1667, $MS_E$는 위와 같다.
+
+이때의 $F_0 = 9.8095$임을 알 수 있고, 이때의 P-value가 $0.009926$임을 알 수 있으므로,
+
+$\alpha = 0.05$로 택했을때, P-value가 0.05보다 작으므로 귀무가설을 기각할 수 있다.
+
+즉, operator에 따른 유의미한 차이가 있다고 말할 수 있다.
+
+
+결과적으로,  $\alpha = 0.05$일때 method, operator에 따라서 assembly time에 유의미한 차이가 존재하지만, order는 assembly time에 유의미한 차이를 준다고 말하기는 힘들다.
+
+\end{document}

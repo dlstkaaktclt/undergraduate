@@ -1,0 +1,53 @@
+---
+title: '326.212 Final Project: Part 1-1'
+output: html_document
+---
+
+## 2014-16757 김보창
+
+## Part 1-1.
+
+
+```{r, echo = FALSE}
+library("DBI")
+library("RSQLite")
+con <- dbConnect(RSQLite::SQLite(), "employee.sqlite")
+str(con)
+
+library("tidyverse")
+employees <- tibble(name   = c("Alice","Bob","Carol","Dave","Eve","Frank"),
+                 email  = c("alice@company.com", "bob@company.com",
+                            "carol@company.com", "dave@company.com",
+                            "eve@company.com",   "frank@comany.com"),
+                 salary = c(52000, 40000, 30000, 33000, 44000, 37000),
+                 dept   = c("Accounting", "Accounting","Sales",
+                            "Accounting","Sales","Sales"))
+phone <- tibble(name  = c("Bob", "Carol", "Eve", "Frank"),
+             phone = c("010-555-1111", "010-555-2222", "010-555-3333", "010-555-4444"))
+
+dbWriteTable(con, "employees", employees, overwrite = TRUE)
+dbWriteTable(con, "phone", phone, overwrite = TRUE)
+
+dbListTables(con)
+
+dbDisconnect(con)
+
+recon <- dbConnect(RSQLite::SQLite(), "employee.sqlite")
+emp <- dplyr::tbl(recon, "employees")
+str(emp)
+ph <- dplyr::tbl(recon, "phone")
+str(ph)
+
+addr <- emp %>%
+    select(name, salary) %>%
+    arrange(salary)
+addr
+left_join(emp,ph)
+
+res <- dbSendQuery(recon, "SELECT * FROM employees")
+dbFetch(res)
+dbClearResult(res)
+
+dbDisconnect(recon)
+```
+

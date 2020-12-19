@@ -1,0 +1,1410 @@
+
+---
+title: "326.212 Homework 2"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+```
+
+
+
+## 2014-16757
+## 컴퓨터공학부 김보창
+
+### Textbook 5.2.4
+
+#### Problem 1. Find all flights that
+
+##### 1. Had an arrival delay of two or more hours
+
+```{r}
+filter(flights, arr_delay >= 120)
+```
+
+##### 2. Flew to Houston (IAH or HOU)
+
+```{r}
+filter(flights, (dest == "IAH" | dest == "HOU"))
+```
+
+##### 3. Were operated by United, American, or Delta
+
+```{r}
+airlines
+```
+
+을 통해 항공사 정보를 얻을 수 있다. 해당하는 항공사는 AA, DL, UA이므로 다음과 같이 코드를 작성하면 된다.
+
+
+```{r}
+filter(flights, carrier %in% c("AA", "DL", "UA"))
+```
+
+##### 4. Departed in summer (July, August, and September)
+
+```{r}
+filter(flights, month %in% c(7,8,9))
+```
+
+##### 5. Arrived more than two hours late, but didn’t leave late
+
+```{r}
+filter(flights, arr_delay > 120, dep_delay <= 0)
+```
+
+##### 6. Were delayed by at least an hour, but made up over 30 minutes in flight
+
+```{r}
+filter(flights, dep_delay >= 60, dep_delay - arr_delay > 30)
+```
+
+출발할때 지연된 시간과 도착할때 지연된 시간의 차가 30보다 크면 30분 이상의 시간을 아낀 경우이므로 위와같이 조건을 썼다.
+
+
+##### 7. Departed between midnight and 6am (inclusive)
+
+```{r}
+filter(flights, (dep_time <= 600 || dep_time == 2400))
+```
+
+midnight는 2400이고 이것도 포함해야 하기때문에 조건문에 써주었다.
+
+
+#### Problem 3. How many flights have a missing dep_time? What other variables are missing? What might these rows represent?
+
+```{r }
+sum(is.na(flights$dep_time))
+```
+
+위 코드를 통해 dep_time이 NA인 row가 8255개임을 알 수 있다.
+
+
+```{r}
+filter(flights, is.na(dep_time))
+```
+
+또한 위 문장을 통해 dep_time이 NA인 row들을 보면, 공통적으로
+dep_time(출발시간), dep_delay(출발 지연시간), arr_time(도착시간), arr_delay(도착 지연시간), air_time(비행시간)의 변수가 모두 NA인것을 볼 수 있다.
+따라서 이러한 변수들의 값이 NA인 row들은 결항된 비행 스케줄을 의미한다고 볼 수 있다.
+
+
+### Textbook 5.3.1
+
+#### Problem 1. How could you use arrange() to sort all missing values to the start? (Hint: use is.na()).
+
+
+is.na(x)함수는 x값이 NA면 TRUE, 그렇지 않으면 FALSE를 리턴하는 함수이고, 
+
+ascending order일때 FALSE VALUE -> TRUE VALUE 순서대로 출력되게 되므로,
+
+다음과 같이 descending order로 is.na 함수를 사용해서 출력하면 missing value가 있는 행이 처음에 오도록 정렬할 수 있다.
+
+```{r}
+df <- tibble(x = c(5, 3, 31, NA, 40, 7, NA), y = c(1, 2, 3, 4, 5, 6, 7))
+
+arrange(df, desc(is.na(x))) 
+```
+
+
+### Textbook 5.4.1
+
+#### Problem 4. Does the result of running the following code surprise you? How do the select helpers deal with case by default? How can you change that default?
+
+```{r}
+select(flights, contains("TIME"))
+```
+
+사용자는 대문자 TIME이 들어간 column만 찾고 싶지만, 대소문자를 구분하지 않고 time이 들어간 모든 column을 찾게 된다.
+
+?select_helpers를 통해 select helper들의 help document를 살펴보면, 
+
+contains() 함수는 ignore.case argument의 값이 TRUE냐 FALSE냐에 따라 대소문자를 구분할지 안할지를 결정하고, default값은 TRUE인것을 알 수 있다.
+
+따라서 다음과 같이 코드를 고쳐주면 대소문자를 구분하여, 우리가 원하는 결과를 얻을 수 있다.
+
+```{r}
+select(flights, contains("TIME", ignore.case = FALSE))
+```
+
+아무것도 출력되지 않는다. "TIME"이 들어간 column이 없으므로, 잘 작동함을 알 수 있다.
+
+### Textbook 5.5.2
+
+#### Problem 1. Currently dep_time and sched_dep_time are convenient to look at, but hard to compute with because they’re not really continuous numbers. Convert them to a more convenient representation of number of minutes since midnight.
+
+flights 테이블에는 dept_time과 sched_dep_time이 hhmm 꼴로 저장되어 있는데, 이 꼴을 midnight부터 지난 분에 따라서 바꾸려면 다음과 같이 바꿔주면 된다.
+
+```{r}
+transmute(flights, dep_time_min = ((dep_time %/% 100) * 60 + (dep_time %% 100)) %% 1440, sched_dep_time_min = ((sched_dep_time %/% 100) * 60 + sched_dep_time %% 100) %% 1440) 
+```
+
+정수 나눗셈 연산 (%/%)과 정수 나머지 연산 (%%)를 통해 시간과 분을 분으로 통합했으며,
+
+midnight (2400)의 경우 0분으로 표기해야 하기 때문에 2400을 해당 연산으로 변환하면 1440이 나오므로, 마지막에 1440으로 나누어주어 midnight인 경우를 처리하였다.
+
+
+#### Problem 3. Compare dep_time, sched_dep_time, and dep_delay. How would you expect those three numbers to be related?
+
+```{r}
+select(flights, dep_time, sched_dep_time, dep_delay)
+```
+
+를 통해 살펴보면, dep_time과 sched_dep_time, dep_delay간의 관계는 
+dep_delay = 실제 항공기 출발 시각 - 예정된 항공기 출발 시각 인것을 알 수 있다.
+
+러프하게 말하면 dep_delay = dep_time - sched_dep_time이라 말할 수 도 있는데, 이때 dep_time과 sched_dep_time은 hhmm형태로, 단순히 뺄셈을 하면 사이에 흐른 정확한 시간을 알 수 없으므로
+
+Problem 1에서처럼 midnight로부터 흐른 분수의 형태로 변경해주는 함수를 modify라고 이름 붙이면,
+
+dep_delay = modify(dep_time) - modify(sched_dep_time)
+
+modify(x) = ((x %/% 100) * 60 + (x %% 100)) %% 1440
+
+이라고 할 수 있다.
+
+이를 적용한 코드는 아래와 같다.
+
+```{r}
+arrange(transmute(flights, dep_time_min = ((dep_time %/% 100) * 60 + (dep_time %% 100)) %% 1440, sched_dep_time_min = ((sched_dep_time %/% 100) * 60 + sched_dep_time %% 100) %% 1440, dep_delay_test = (dep_time_min - sched_dep_time_min) - dep_delay), desc(dep_delay_test))
+```
+
+dep_delay_test값이 0인것을 알 수 있다.
+
+
+하지만 이 경우도 약간의 문제가 있다. 실제 출발 시간과 출발 예정시각이 24:00을 기준으로 바뀌게 되면, 즉 출발 예정일과 출발한 날짜가 다르게 되면 계산이 약간 이상해지므로,
+
+정확히는 dep_time, sched_dep_time뿐만 아니라 실제 비행일, 예정 비행일의 year, month, day까지 받아서 2013년 1월 1일 00시를 기준으로 몇분이 지났는지 센다음, 실제 출발 시각과 예정 출발 시각을 빼준것이 dep_delay가 된다.
+
+따라서 정확히 말하면, dep_delay와 dep_time, sched_dep_time은 다음의 관계를 가진다.
+
+dep_delay = (time_from_2013_01_01(dep_time) - time_from_2013_01_01(sched_dep_time)) 
+
+
+### Textbook 5.6.7
+
+#### Problem 5. Which carrier has the worst delays? Challenge: can you disentangle the effects of bad airports vs. bad carriers? Why/why not? (Hint: think about flights %>% group_by(carrier, dest) %>% summarise(n()))
+
+먼저 어떤 carrier가 worst delay를 가지는지 봐야하므로, 평균 딜레이가 가장 높은 carrier를 보기 위해 다음 코드를 실행하였다.
+
+```{r}
+flights %>% 
+group_by(carrier) %>% 
+summarise(mean_arr_delay = mean(arr_delay, na.rm = TRUE), mean_dep_delay = mean(dep_delay, na.rm = TRUE), count = n()) %>% arrange(desc(mean_arr_delay+mean_dep_delay))
+```
+
+group_by()로 carrier를 통해 그루핑 해준 뒤,
+
+summarise()함수에서 mean을 통해 arr_delay와 dep_delay의 평균을 뽑고,
+
+arrange()를 통해 평균 arr_delay와 평균 dep_delay의 합이 가장 큰 순서대로 정렬하였을때,
+
+F9 carrier가 가장 딜레이가 큼을 알 수 있다.
+
+따라서 F9 carrier가 Worst delay를 가진다.
+
+
+두번째 질문인 나쁜 airport와 나쁜 carrier의 효과를 구분할 수 있는지에 대한 질문에 대해 생각해보자.
+
+
+여기서 나쁜이라는 말이 애매하므로, 나쁜 airport와 나쁜 carrier가 무엇인지를 정해야한다.
+
+자료에는 EWR, JFK, LGA 공항에서 출발하는 비행기밖에 없으므로 이륙할 때의 상황을 가지고 나쁜 airport를 판단하기는 어렵다.
+
+따라서 공항이 나쁘다는것을 공항의 지리적 위치가 좋지않아 착륙에 애로사항이 생기거나, 공항 시설 자체가 좋지 않아 비행기들이 착륙하지 못하고 하늘에서 오래 기다려야 하는 공항이라고 하자.
+
+하늘에서 추가적으로 기다리는 시간은, arr_delay만 가지고 고려하면 처음 이륙 자체가 늦었을때를 생각하지 못하므로, arr_delay - dep_delay라고 정의하자.
+
+이 시간들이 평균적으로 길면 나쁜 공항이라 할 수 있을것이다.
+
+
+
+나쁜 carrier를 정하기 위해서는, 비행기라는 운송수단의 특징에 대해 생각해봐야한다.
+
+비행기는 정해진 이륙시간이 지나면 탈 수 없으므로, 비행기를 타는 사람들은 비행기의 이륙시간에 맞춰 자신의 스케줄을 조정하곤 한다.
+
+따라서 이륙시간이 예정된 시간보다 늦춰지는 경우, 착륙시간도 당연히 늦춰질뿐더러, 이륙시간에 맞춰 미리 온 승객은 기다리는것 외에는 아무것도 할수있는것이 없다.
+
+거기다가 이륙시간이 크게 늦춰지는경우가 발생하면, 비행기를 타는 사람들은 다른 스케줄을 비행기 착륙 이후에 준비해 놓았을 것이므로, 스케줄을 수정해야 하는 최악의 경우가 발생할 수 있으므로, 
+
+나쁜 carrier를 dep_delay의 편차가 큰 항공사로 정의하겠다.
+
+
+
+먼저 나쁜 airport를 정하기위해, 다음 코드를 통해 나쁜 airport들을 볼 수 있다.
+
+```{r}
+bad_airport <- flights %>% 
+transmute(dest = dest, sub_delay = arr_delay - dep_delay) %>% 
+group_by(dest) %>% 
+summarise(count = n(), mean_sub_delay = mean(sub_delay, na.rm = TRUE), sd_sub_delay = sd(sub_delay, na.rm = TRUE)) %>% 
+filter(count > 10) %>% 
+arrange(desc(mean_sub_delay), desc(sd_sub_delay))
+```
+
+각 row마다 arr_delay에서 dep_delay를 빼준것을 sub_delay로 정의하고, dest로 그루핑하여
+summarise함수를 통해 sub_delay의 평균과 표준편차를 구했다.
+filter를 통해 count가 10보다 낮은 공항들을 제거하고, mean_sum_delay를 통해 내림차순 정렬하였을때, 가장 위에 오는 공항이 나쁜 공항이라 할 수 있을것이다. 
+
+(이 데이터에선, CAE 공항 혼자 유의미하게 평균 delay가 높음을 알 수 있다. sd도 낮지 않다.)
+
+
+나쁜 항공사는 다음과 같이 알 수 있다.
+
+```{r}
+bad_carrier <- flights %>% 
+group_by(carrier) %>% 
+summarise(count = n(), mean_dep_delay = mean(dep_delay, na.rm = TRUE), sd_dep_delay = sd(dep_delay, na.rm = TRUE)) %>%
+select(carrier, count, mean_dep_delay, sd_dep_delay) %>% 
+filter(count > 10) %>% 
+arrange(desc(sd_dep_delay), desc(mean_dep_delay))
+```
+
+각 carrier마다 dep_delay의 평균과 표준편차를 구하고, 표준편차에 대해 내림차순으로 정렬하였다.
+
+이를 통해 나쁜 항공사를 알 수 있다.
+
+(위 예시에서 보였던 F9항공사는 이륙 지연시간 평균도 높고, 지연시간의 표준편차도 큼을 알 수 있다.)
+
+
+따라서, 이러한 기준으로 나쁜 공항과 나쁜 항공사를 파악한다면, 이륙 후 공항에 도착하기까지 걸리는 시간의 지연율은, 이륙시간이 얼마나 미뤄졌느냐와는 관계가 적도록 지정하였기 때문에,
+
+(arr_delay에서 dep_delay를 뺀 것으로 나쁜 공항을 결정하는데, 이륙할때 지연시간이 커지면 당연히 착륙할때의 지연시간도 커질것이기 때문에 dep_delay의 값과는 큰 연관이 없게 된다)
+
+나쁜 항공사와 나쁜 공항의 효과를 분리할 수 있게 된다.
+
+
+
+위의 F9 예시에서 항공사의 문제인지, 공항의 문제인지를 보기위해 다음 코드를 실행해보면
+
+```{r}
+flights %>% group_by(carrier, dest) %>% summarise(n()) %>%  filter(carrier == "F9")
+```
+
+F9항공사는 DEN 공항에만 취항함을 알 수있다.
+이 DEN 공항에 대해 위에서 우리가 만들었던 bad_airport 데이터를 활용하여 보면,
+
+```{r}
+bad_airport %>% 
+mutate(rank_by_mean = rank(desc(mean_sub_delay))) %>% 
+filter(dest == "DEN")
+```
+
+
+DEN 공항은 전체 공항중에 mean_sub_delay로 순위를 매겼을때 62위라는것을 알 수 있다. 
+
+따라서 공항자체는 그렇게 나쁘다고 볼 수 없으며, 항공사가 나빠서 그렇다는 결론을 내릴 수 있다. 
+
+
+
+
+### Textbook 5.7.1
+
+#### Problem 5. Delays are typically temporally correlated: even once the problem that caused the initial delay has been resolved, later flights are delayed to allow earlier flights to leave. Using lag(), explore how the delay of a flight is related to the delay of the immediately preceding flight.
+
+
+바로 전 비행기의 dep_delay가 어떤 영향을 끼치는지 알아보기 위해, 먼저 데이터를 다음과 같이 변환해주었다.
+
+```{r}
+delay_flight <- flights %>% 
+arrange(origin, year, month, day, dep_time) %>% 
+group_by(origin) %>% 
+transmute(year, month, day, curr_dep_time = dep_time, curr_dep_delay = dep_delay, prev_dep_delay = lag(dep_delay,1)) %>% 
+filter(!is.na(curr_dep_delay), !is.na(prev_dep_delay))
+```
+
+먼저 origin과 날짜, 출발 시간으로 데이터를 정렬한 다음, 각 origin에 따라 결과를 보기위해 origin으로 그루핑을 해주고,
+transmute와 lags를 이용해 그 전의 이륙 지연시간을 볼 수 있게 하였다.
+
+마지막에는 filter를 이용해 dep_delay가 NA인 항들을 제거하였다.
+
+
+
+```{r}
+delay_flight %>% 
+ungroup() %>% 
+group_by(prev_dep_delay) %>% 
+summarise(curr_delay_mean = mean(curr_dep_delay)) %>% 
+ggplot(aes(x = prev_dep_delay, y = curr_delay_mean)) + geom_point()
+```
+
+그 후, prev_dep_delay가 curr_dep_delay에 어떻게 영향을 미치는지 알기 위해, prev_dep_delay에 따라 curr_dep_delay의 평균을 구해 이 자료를 표시하였을 때,
+
+prev_dep_delay가 250까지는 거의 curr_dep_delay의 평균과 비례함을 알 수있었다.
+
+따라서 항공기의 이륙지연시간은 바로 전 항공기의 이륙 지연시간에 거의 정비례함을 알 수 있다.
+
+
+```{r}
+delay_flight %>% 
+ungroup() %>% 
+group_by(origin, prev_dep_delay) %>% 
+summarise(curr_delay_mean = mean(curr_dep_delay)) %>% 
+ggplot(aes(x = prev_dep_delay, y = curr_delay_mean)) + geom_point() + facet_wrap(~ origin, ncol = 1)
+```
+
+각 공항에 대해서 보여도 비슷한 결과가 나옴을 알 수 있다.
+
+
+
+
+### Textbook 7.3.4
+
+#### Problem 2. Explore the distribution of price. Do you discover anything unusual or surprising? (Hint: Carefully think about the binwidth and make sure you try a wide range of values.)
+
+먼저 diamonds들의 price 정보를 보기 위해 다음 코드를 실행하였다.
+
+```{r}
+ggplot(data = diamonds) + geom_histogram(mapping = aes(x = price), binwidth = 1000)
+```
+
+price가 0인부분 근처를 제외하고는 대부분 price가 높을수록 해당하는 다이아몬드의 개수가 적음을 알 수 있는데, 이정도 binwidth로는 특별한 데이터를 찾기가 힘들어서 binwidth를 더 줄여보았다.
+
+```{r}
+ggplot(data = diamonds) + geom_histogram(mapping = aes(x = price), binwidth = 50)
+```
+
+이렇게 줄여보니, price가 높아질수록 데이터의 개수가 감소하긴 하지만 일정하게 감소하는것이 아니라, 들쭉날쭉하게 감소하는것을 알 수 있고,
+
+그래프를 보면 빈부분이 있어서 빈 부분을 확대해보았다.
+
+```{r}
+ggplot(data = diamonds) + geom_histogram(mapping = aes(x = price), binwidth = 50) + coord_cartesian(ylim = c(0,500), xlim = c(0,5000)) + scale_x_continuous(breaks = seq(0,20000,500))
+```
+
+다이아몬드중에 1500달러 부근에 팔린 다이아몬드는 단 하나도 존재하지 않음을 확인할 수 있다. 1500달러를 제외한 다른 가격대에는 일정량의 데이터가 존재하는데, 이러한 점이 약간 이상하다고 생각한다.
+
+
+
+### Textbook 7.5.1.1
+
+#### Problem 1. Use what you’ve learned to improve the visualisation of the departure times of cancelled vs. non-cancelled flights.
+
+
+cancelled flight와 non-cancelled flights들의 차이를 알아보기위해, 다음 코드를 실행하였다.
+
+```{r}
+cncflights <- mutate(nycflights13::flights,
+cancelled = is.na(dep_time),
+sched_hour = sched_dep_time %/% 100,
+sched_min = sched_dep_time %% 100,
+sched_dep_time = sched_hour + sched_min / 60)
+```
+
+
+```{r}
+ggplot(cncflights) + geom_freqpoly(mapping = aes(x = sched_dep_time, color = cancelled), binwidth = 0.25)
+```
+
+이렇게 비교하면, cancelled 된 count가 cancel되지 않은 데이터들의 count보다 현저히 작으므로, 비교하기가 힘들다. 따라서 이러한 count에 따른 영향을 보정해주기위해, y값으로 ..density..를 사용하면
+
+```{r}
+ggplot(cncflights) + geom_freqpoly(mapping = aes(x = sched_dep_time, y = ..density.., color = cancelled), binwidth = 0.25)
+```
+
+count에 관계없이 전체적인 데이터의 경향을 볼 수 있게된다. 이를 통해, 상대적으로 오후 3시 이후에 cancel되는 비행들이 많음을 알 수 있다.
+
+
+또한, boxplot을 이용하여 이러한 결과를 비교할수도 있다.
+
+```{r}
+ggplot(cncflights) + geom_boxplot(mapping = aes(x = cancelled, y = sched_dep_time))
+```
+
+#### Problem 2. What variable in the diamonds dataset is most important for predicting the price of a diamond? How is that variable correlated with cut? Why does the combination of those two relationships lead to lower quality diamonds being more expensive?
+
+먼저, 다이아몬드의 price가 어떤 변수와 연관이 있는지 알아보기 위해 다음 그래프를 그려보았다.
+
+```{r}
+ggplot(data = diamonds) + geom_point(mapping = aes(x = carat, y = price, color = color)) + facet_grid(cut ~ clarity)
+```
+
+이를 통해 자료의 경향성을 보면, 다이아몬드의 가격은 기본적으로 carat이 크면 클수록 올라감을 알 수 있고, 색깔이나 cut, clarity등의 영향은 carat에 비하면 작은것을 알 수 있다.
+
+
+이제 carat과 cut의 관계를 알아보기 위해, cut이 categorical data고, carat이 continuous data이므로 box plot을 이용해 다음과 같이 자료를 표기하였다.
+
+
+```{r}
+ggplot(data = diamonds) + geom_boxplot(mapping = aes(x = cut, y = carat))
+```
+
+이를 통해, ideal cut의 경우 다른 cut들보다 carat의 분포가 더 낮은곳에 있음을 알 수 있고,
+fair의 경우 carat의 분포가 상대적으로 더 위에 있음을 알 수 있다.
+
+즉, 일반적으로 cut이 ideal쪽으로 접근할수록, carat의 분포가 더 아래쪽에 형성됨을 알 수 있다.
+
+
+이제 lower quality diamonds들이 더 비싼 이유를 알 수 있는데, cut이 lower quality일수록 carat의 분포가 더 위쪽에 형성되고, price는 다른 요인보다는 carat에 가장 큰 영향을 받으므로,
+lower quality diamonds들중 더 비싼 다이아몬드가 많았던 것이다.
+
+실제로 carat이 비슷할때, cut에 따른 가격을 비교해보면, 다음과 같은 결과가 나온다.
+
+```{r}
+ggplot(data = diamonds) + geom_boxplot(mapping = aes(x = cut_width(carat, 0.5), y = price, color = cut)) + coord_cartesian(xlim = c(0,7))
+```
+
+
+ideal cut에 가까운 cut일수록, price의 분포가 위로 형성됨을 확인할 수 있다.
+
+
+### Textbook 7.5.2.1
+
+#### Problem 2. Use geom_tile() together with dplyr to explore how average flight delays vary by destination and month of year. What makes the plot difficult to read? How could you improve it?
+
+delay에는 arr_delay와 dep_delay가 있는데, 여기서는 dep_delay를 사용하겠다.
+
+```{r}
+flights_avg_del <- flights %>% 
+group_by(month, dest) %>%
+summarise(avg_dep_delay = mean(dep_delay, na.rm = TRUE))
+```
+
+자료를 만들고,
+
+```{r}
+ggplot(data = flights_avg_del, mapping = aes(x = month, y = dest)) +
+geom_tile(mapping = aes(fill = avg_dep_delay))
+```
+
+다음과 같이 자료를 출력하면, 여러가지 이유로 보기가 힘들다.
+
+1. month에 따라 라벨이 붙어있으면 좋겠는데, 그렇지 않다.
+
+2. 아예 비행기록이 없는 셀이 있는데 (하얀색으로 표시된 부분) 이러한     셀때문에 자료해석에 방해가 된다.
+   이러한 셀이 있는 공항은, 이 공항으로 가는 비행편이 매우 드물다는     것이므로 delay의 경향을 보는데 도움이 되지 않는다.
+
+3. delay가 큰 셀과 작은셀의 색깔이 비슷비슷해서 한눈에 알아보기가 힘들다.
+
+따라서 다음과 같이 데이터를 수정하고, 출력하였다.
+
+```{r}
+new_flights_avg_del <- flights_avg_del %>% 
+ungroup() %>% 
+group_by(dest) %>% 
+filter(n() == 12) %>% 
+arrange(dest)
+```
+
+먼저, 모든 month에 데이터가 하나라도 없는 셀들을 정리하고, destination에 따라 셀을 정렬하였다.
+
+```{r}
+ggplot(data = new_flights_avg_del, mapping = aes(x = month, y = dest)) + geom_tile(mapping = aes(fill = avg_dep_delay)) + scale_x_continuous(breaks = seq(1,12,1)) + scale_fill_viridis_c()
+```
+
+그 뒤, 보기 편하도록 month에 가이드를 추가했고, delay가 큰 셀이 돋보이도록 viridis colorset을 사용하였다.
+
+
+
+
+
+### Textbook 7.5.3.1
+
+#### Problem 5. Two dimensional plots reveal outliers that are not visible in one dimensional plots. For example, some points in the plot below have an unusual combination of x and y values, which makes the points outliers even though their x and y values appear normal when examined separately.
+
+```{r}
+ggplot(data = diamonds) +
+  geom_point(mapping = aes(x = x, y = y)) +
+  coord_cartesian(xlim = c(4, 11), ylim = c(4, 11))
+```
+
+Why is a scatterplot a better display than a binned plot for this case?
+
+
+해당 데이터에 대해 똑같은 binned plot을 그려보면, 다음과 같이 plot이 그려지게 된다.
+
+```{r}
+ggplot(data = diamonds) +
+geom_bin2d(mapping = aes(x = x, y = y), binwidth = 0.5) +
+coord_cartesian(xlim = c(4, 11), ylim = c(4, 11))
+```
+
+
+
+이 데이터의 경우는 x와 y간에 강한 상관관계가 존재하여, x와 y가 정비례하는 데이터이다.
+
+이러한 경우, binned plot으로 데이터를 본다면,
+맨 오른쪽 상단의, x와 y의 정비례관계를 잘 보여주는 데이터라 해도 count가 적으므로 outlier로 판단하는 경우가 생길 수 있고, 
+
+실제 outlier들이라도, bin의 영역으로 뭉뚱그려 표시되기 때문에, 약간의 데이터가 정상적인 자료들 부근에 분포한다고만 생각하고 넘어가게 될 수 있다.
+
+따라서 point plot을 그려 outlier들을 파악하는것이 좋다.
+
+
+
+### Textbook 10.5
+
+#### Problem 4. Practice referring to non-syntactic names in the following data frame by:
+
+```{r}
+annoying <- tibble(
+  `1` = 1:10,
+  `2` = `1` * 2 + rnorm(length(`1`))
+)
+```
+
+
+##### 1. Extracting the variable called 1.
+
+```{r}
+annoying$`1`
+```
+
+
+
+##### 2. Plotting a scatterplot of 1 vs 2.
+
+```{r}
+ggplot(annoying, aes(x = `1`, y = `2`)) + geom_point()
+```
+
+##### 3. Creating a new column called 3 which is 2 divided by 1.
+
+```{r}
+new_annoying <- mutate(annoying, `3` = `2` / `1`)
+
+new_annoying
+```
+
+##### 4. Renaming the columns to one, two and three.
+```{r}
+rename_annoying <- rename(new_annoying, one = `1`, two = `2`, three = `3`)
+
+rename_annoying
+```
+
+
+
+
+
+
+
+### Textbook 11.2.2
+
+#### Problem 5. Identify what is wrong with each of the following inline CSV files. What happens when you run the code?
+
+```{r}
+read_csv("a,b\n1,2,3\n4,5,6")
+```
+
+첫줄의 원소가 2개인데 다른줄들의 원소는 3개씩이라 각 row당 column의 개수가 맞지 않아 오류가 생긴다.
+
+결과적으로, column이 a,b인 2개인 데이터로 인식되어 두번째줄의 3과 세번째줄의 6이 무시된다.
+
+
+```{r}
+read_csv("a,b,c\n1,2\n1,2,3,4")
+```
+
+첫줄의 원소가 3개라 column이 3개로 인식되는데, 2번째줄에는 데이터가 2개밖에 없어서
+column c에 해당하는 데이터가 NA로 입력되고,
+3번째줄에는 데이터가 4개라 4번째 데이터인 4가 무시된다.
+
+
+```{r}
+read_csv("a,b\n\"1")
+```
+
+2번째 줄에 '\"'를 통해 문자열을 표현하기 위한 쌍따옴표를 열었지만, 이를 닫아주지 않아 해석이 애매해져서, 이를 무시하고, 1이라는 데이터를 char가 아니라 number로 해석하게 된다.
+
+또한 1번째줄에 원소가 2개라 column이 2개로 인식되는데, 2번째줄에 해당하는 원소는 1개뿐이므로, 2번째 column에 해당되는 데이터는 NA로 입력되게 된다. 
+결국 두번째줄의 1은 첫번째 column의 원소가 되고, 첫 column의 데이터형은 숫자형이 된다. (dbl) 두번째 column의 데이터형은 chr가 되고, 해당 데이터는 NA로 처리된다.
+
+
+```{r}
+read_csv("a,b\n1,2\na,b")
+```
+
+각 row에는 column 개수와 맞게 2개씩의 데이터가 들어가있지만, 두번째 줄은 1,2가, 세번째 줄은 a,b가 들어가있고, 이들을 공통된 data type을 가지게 해석하는 방법은 character로 해석하는 것이므로, column a와 b의 type은 chr가 된다.
+
+
+```{r}
+read_csv("a;b\n1;3")
+```
+
+read_csv에서 delimiter는 ',' 이므로,  ';'은  구분자가 아니라 일반적인 character로 취급되어
+이 데이터는 column 이름이 a;b인 하나의 column을 가지고, 1;3이라는 하나의 문자형 데이터를 가지고 있는 데이터로 취급된다.
+
+만약 ;를 구분자로 사용하고 싶다면 다음과 같이 read_csv2()를 사용해야한다.
+
+```{r}
+read_csv2("a;b\n1;3")
+```
+
+
+
+### Textbook 11.3.5
+
+#### Problem 4. If you live outside the US, create a new locale object that encapsulates the settings for the types of file you read most commonly.
+
+
+?locale 문장을 통해 locale 오브젝트를 새로 만들기 위해 어떤 인자가 필요한지 알아보았고,
+
+다음과 같은 새로운 locale object를 만들었다.
+
+```{r}
+kr_locale = locale(date_names = "ko", date_format = "%AD", time_format = "%AT", decimal_mark = ".", grouping_mark = ",", tz = "Asia/Seoul", encoding = "UTF-8", asciify = FALSE)
+
+kr_locale
+```
+
+date_names는 일, 월 이름을 어떤 문자로 표시할것인지를 결정한다.
+
+이를 알기 위해서 date_names_langs()를 통해 한국어의 경우 "ko"값을 가진다는것을 알 수 있었다.
+
+따라서 locale은 월 이름을 한국어로 받을 수 있다.
+
+date_format과 time_format, decimal mark와 grouping mark같은 경우에는 각각 날짜와 시간, 소수점 구분자와 큰 수를 표기할 때 표기하는 문자를 의미하는데, 
+우리나라의 경우. 과 ,를 이용해서 소수점과 구분자를 사용하므로 그대로 두었다.
+
+또한 date_format과 time_format의 %AD, %AT는 R의 자동 파서를 이용해 %AD의 경우 Y-m-d, Y/m/d 형태를, %AT의 경우 H:M(:seconds, pm/am..)등을 파싱해 준다는것을 알았고, 다른나라와 다를바가 없으므로 그대로 두었다.
+
+timezone의 경우, OlsonNames()을 통해 가능한 timezone들을 알아내어, 서울의 시간 Asia/Seoul로 설정해주었다.
+
+
+
+
+
+#### Problem 7. Generate the correct format string to parse each of the following dates and times:
+ 
+ 
+```{r}
+d1 <- "January 1, 2010"
+d2 <- "2015-Mar-07"
+d3 <- "06-Jun-2017"
+d4 <- c("August 19 (2015)", "July 1 (2015)")
+d5 <- "12/30/14" # Dec 30, 2014
+t1 <- "1705"
+t2 <- "11:15:10.12 PM"
+```
+
+
+
+##### d1
+
+```{r}
+parse_date(d1, "%B %d, %Y")
+```
+
+기본 locale은 en으로, 영문 월을 해석할 수 있다.
+%B는 월 이름을(축약 아님), %d는 숫자로 된 날짜를, %Y는 4자리 연도를 나타낸다.
+
+##### d2
+
+```{r}
+parse_date(d2, "%Y-%b-%d")
+```
+
+%Y는 4자리 연도를, %b는 월 이름을(축약형), %d는 날짜를 나타낸다.
+
+##### d3
+
+```{r}
+parse_date(d3, "%d-%b-%Y")
+```
+
+##### d4
+
+```{r}
+parse_date(d4, "%B %d (%Y)")
+```
+
+##### d5
+
+```{r}
+parse_date(d5, "%m/%d/%y")
+```
+
+%m은 숫자로 된 월을, %d는 숫자로 된 일을, %y는 2자리 년도를 나타낸다.
+
+##### t1
+
+```{r}
+parse_time(t1, "%H%M")
+```
+
+%H는 24시간으로 된 시간을, %M은 분을 나타낸다.
+
+##### t2
+
+```{r}
+parse_time(t2, "%I:%M:%OS %p")
+```
+
+%I는 12시간으로 된 시간을, (am/pm 구분을 위해 %p와 함께 써야함), %M은 분을, %OS는 real seconds를 나타낸다.
+
+
+### EXTRA QUESTION
+
+작업 일자 : 2019-10-12
+
+#### Problem 1. Pakcage quantmod fetches financial data from public-domain sources, e.g., Yahoo! Finance (http://finance.yahoo.com). You can get KOSPI data as well:
+
+```{r}
+library(quantmod)
+```
+
+```{r}
+options("getSymbols.warning4.0"=FALSE) # to suppress warnings 
+samsung <- getSymbols("005930.KS", auto.assign=FALSE)  # KOSPI tick number is 005930
+head(samsung)
+```
+
+
+
+
+
+Variable samsung is xts class, which is similar to the data frame or tibble but designed to handle time series easily. The fourth column is the stock price adjusted for dividends and splits, and you can plot it using R’s default plot():
+
+```{r}
+plot(samsung$`005930.KS.Close`)
+```
+
+
+
+##### a. Suppose you want to plot the closing price above using ggplot2 instead of R’s default plot. Unfortunately, ggplot2 does not support xts objects. Your first task is to convert samsung into a tibble. How would you do this? Once you succeed in this task, the next step is to plot the closing prices using ggplot(). The conversion process won’t show the date information, but it is hidden in rownames(). Add a new date variable to your converted tibble, and plot the closing prices using the geom_line primitive. (Hint. base::as.Date())
+
+ggplot2를 사용하기 위해, 먼저 xts object인 samsung을 tibble로 바꿔야만 한다.
+
+이를 실행할때, 먼저 xts 데이터를 data.frame 객체로 만들어 주기 위해 다음 코드를 실행하였다.
+
+```{r}
+samsung_frame <- data.frame(date = index(samsung), coredata(samsung))
+```
+
+이때, data.frame(samsung)과 같이 xts 데이터를 바로 data.frame으로 바꾸면, date가 겉으로 보이지 않는 row_name이 되어 tibble로 변환해줄때 date 정보가 누락되므로, 위와같이 date = index(samsung)을 통해 명시적으로 column을 생성해 주었다. 또한 index를 제외한 나머지 정보들은 coredata(samsung)을 이용해 빠놓는 정보 없이 모두 추가해주었다.
+
+그리고 이를 as_tibble을 이용해 변환하였다.
+
+```{r}
+samsung_tibble <- as_tibble(samsung_frame)
+samsung_tibble 
+```
+
+생성된 tibble을 확인해보면, 
+정상적으로 date를 포함해서 7개의 column을 가짐을 알 수 있고, date의 데이터 형이 date가 되어 정상적으로 컨버팅이 되었음을 알 수있다.
+
+```{r}
+ggplot(data = samsung_tibble) + geom_line(mapping = aes(x = date, y = X005930.KS.Close)) + 
+labs(y = "closed_price(Won)") +
+scale_x_date(breaks = "1 year", date_labels = "%Y")
+```
+
+그 후, ggplot과 geom_line을 이용해 데이터를 위와 같이 표기하였다.
+
+
+
+
+
+
+##### b. Using quandmod::getFX(), download the recent 180-day history of USD/KRW and JPY/KRW exchange rates. Then calculate Samsung’s adjusted closing prices in USD and in JPY, and plot the three time series using ggplot2. Since the currency scale varies much, normalize the USD and JPY prices so that the initial price coincides with the KRW price. A problem with this analysis is that the time points in the stock price data and the exchange rate data do not always coincide. Explain how you extract the common time points.
+
+
+?quantmod::getFX()를 통해 확인해 보면, 이 함수는 
+getFX(Currency = 'XXX/YYY', from = xxx, to = xxx...) 을 받아, from 부터 to의 기간까지 xxx/yyy에 해당하는 환율 데이터를 받아와서, 환경에 변수로 저장함을 알 수 있다.
+
+from의 경우 default값이 Sys.Date() - 179, to의 경우 default값이 Sys.Date()이므로, 
+현재 날짜로부터 179일 전의 날까지, 총 180일의 데이터를 받아옴을 알 수 있다.
+
+```{r}
+quantmod::getFX(Currencies = 'USD/KRW')
+quantmod::getFX(Currencies = 'JPY/KRW')
+```
+
+getFX로 받아온 데이터는 xts data로 USDKRW, JPYKRW라는 변수에 저장되므로, 다음과 같이 tibble로 바꾸어 주었다.
+
+
+
+```{r}
+usd_krw <- as_tibble(data.frame(date = index(USDKRW), coredata(USDKRW)))
+
+jpy_krw <- as_tibble(data.frame(date = index(JPYKRW), coredata(JPYKRW)))
+```
+
+
+```{r}
+usd_krw
+```
+달러/원 환율
+
+```{r}
+jpy_krw
+```
+엔/원 환율
+
+
+환율을 정상적으로 받아왔음을 알 수 있다.
+
+
+이 데이터로 작업하기 전에, samsung_tibble을 확인해보면 2019-10-04 같이 date에 해당하는 데이터가 NA로 존재하지 않거나, 2019-10-03과 같이 아예 stock data가 존재하지 않는 날짜도 존재한다.
+
+이를 해결하기 위해 samsung_tibble을 적절히 변환시켜 주었다.
+
+```{r}
+exchange_samsung <- samsung_tibble %>% 
+filter(!is.na(`X005930.KS.Close`)) %>% 
+left_join(usd_krw) %>% 
+left_join(jpy_krw) %>% 
+rename(KRW = `X005930.KS.Close`) %>% 
+mutate(USD = `KRW` / `USD.KRW`, JPY = `KRW` / `JPY.KRW`) %>% 
+select(date, KRW, USD, JPY, USD.KRW, JPY.KRW)
+```
+
+
+먼저 filter를 이용해 Closed data가 NA로 없는경우를 제외시켜주고,
+
+left_join을 통해 각 날짜에 해당하는 환율을 테이블에 붙여주었다.
+
+그 후, 해당하는 환율을 적용한 Closed 될때의 최근 180일동안의 주가를 각각 원, 달러, 엔으로 표기하여 exchange_samsung tibble을 만들었다.
+
+
+```{r}
+exchange_samsung
+```
+
+이를 그대로 plot하면, 다음과 같이 출력된다.
+
+```{r}
+ggplot(data = exchange_samsung) + geom_line(mapping = aes(x = date, y = KRW, color = "KRW")) + geom_line(mapping = aes(x = date, y = USD, color = "USD")) + geom_line(mapping = aes(x = date, y = JPY, color = "JPY")) + scale_color_manual( breaks = c("KRW", "JPY", "USD"), values = c("green", "red", "blue")) + theme(legend.position="bottom", legend.direction="horizontal") +
+labs(x = "Date", y = "KRW", title = "price of samsung stock") + 
+scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+```
+
+
+그런데 이러한 상태에서는 달러와 엔의 단위가 원의 단위와 달라서, 서로 비교하기가 너무 어려우므로, 다음과 같이 data를 normalize 하였다.
+
+환율 데이터가 있는 첫날의 달러와 엔 가격이 원의 경우와 같아야하므로, 
+
+환율데이터가 존재하는 첫날의 환율을 기준으로 일괄적으로 달러와 엔을 원으로 변환하면 다음과 같다.
+
+```{r}
+normed_exchange_samsung <- exchange_samsung %>% 
+transmute(date = date, KRW = KRW, USD = USD, JPY = JPY, NORM_USD = USD * USD.KRW[min(which(!is.na(USD.KRW)))], NORM_JPY = JPY * JPY.KRW[min(which(!is.na(JPY.KRW)))])
+```
+
+
+```{r}
+ggplot(data = normed_exchange_samsung) + geom_line(mapping = aes(x = date, y = KRW, color = "KRW")) + geom_line(mapping = aes(x = date, y = NORM_USD, color = "NORM_USD")) + geom_line(mapping = aes(x = date, y = NORM_JPY, color = "NORM_JPY")) + scale_color_manual( breaks = c("KRW", "NORM_JPY", "NORM_USD"), values = c("green", "red", "blue")) + theme(legend.position="bottom", legend.direction="horizontal") +
+labs(x = "Date", y = "KRW(normalized)", title = "price of samsung stock normalized by won") + 
+scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+```
+
+그런데 이렇게 가격을 비교하면, stock price 데이터와 환율 데이터가 존재하는 시점이 각각 달라서, 보기에도 불편하고 가격을 비교하기도 어렵다. 
+
+
+
+이를 해결하기 위해, 공통된 시점만 뽑아서 데이터를 만들자.
+
+
+다음과 같이 데이터를 만들때 left_join 대신 inner_join을 사용하면, 공통된 date가 존재하는 경우, 즉 common time point에 해당하는 데이터만 추출할 수 있다.
+
+```{r}
+new_samsung <- samsung_tibble %>% 
+filter(!is.na(`X005930.KS.Close`)) %>% 
+inner_join(usd_krw) %>% 
+inner_join(jpy_krw) %>% 
+rename(KRW = `X005930.KS.Close`) %>% 
+mutate(USD = `KRW` / `USD.KRW`, JPY = `KRW` / `JPY.KRW`) %>% 
+select(date, KRW, USD, JPY, USD.KRW, JPY.KRW)
+```
+
+앞에서와 같이, 먼저 filter를 이용해 Closed data가 NA로 없는경우를 제외시켜주고,
+
+inner_join을 통해 각 날짜에 해당하는 환율을 테이블에 붙여주었다. (이과정에서 환율 데이터와 주가 데이터중, 공통된 date가 존재하지 않는 경우가 제거된다)
+
+그 후, 해당하는 환율을 적용한 Closed 될때의  최근 180일동안의 주가를 각각 원, 달러, 엔으로 표기하여 new_samsung tibble을 만들었다.
+
+
+```{r}
+new_samsung
+```
+
+앞에서와 같은 과정을 거치면,
+
+```{r}
+ggplot(data = new_samsung) + geom_line(mapping = aes(x = date, y = KRW, color = "KRW")) + geom_line(mapping = aes(x = date, y = USD, color = "USD")) + geom_line(mapping = aes(x = date, y = JPY, color = "JPY")) + scale_color_manual( breaks = c("KRW", "JPY", "USD"), values = c("green", "red", "blue")) + theme(legend.position="bottom", legend.direction="horizontal") +
+labs(x = "Date", y = "KRW", title = "price of samsung when closed in recent 180 days") + 
+scale_x_date(date_breaks = "1 month", date_labels = "%b %Y")
+```
+
+그대로 USD와 JPY를 출력한경우.
+
+
+```{r}
+normed_new_samsung <- new_samsung %>% 
+transmute(date = date, KRW = KRW, USD = USD, JPY = JPY, NORM_USD = USD * USD.KRW[min(which(!is.na(USD.KRW)))], NORM_JPY = JPY * JPY.KRW[min(which(!is.na(JPY.KRW)))])
+```
+
+```{r}
+ggplot(data = normed_new_samsung) + geom_line(mapping = aes(x = date, y = KRW, color = "KRW")) + geom_line(mapping = aes(x = date, y = NORM_USD, color = "NORM_USD")) + geom_line(mapping = aes(x = date, y = NORM_JPY, color = "NORM_JPY")) + scale_color_manual( breaks = c("KRW", "NORM_JPY", "NORM_USD"), values = c("green", "red", "blue")) + theme(legend.position="bottom", legend.direction="horizontal") +
+labs(x = "Date", y = "KRW(normalized)", title = "price of samsung when closed in recent 180 days") + 
+scale_x_date(date_breaks = "1 month", date_labels = "%b %Y")
+```
+
+
+환율데이터가 존재하는 첫날의 환율을 기준으로 일괄적으로 달러와 엔을 원으로 변환한 경우.
+
+
+
+
+첫날의 가격이 일치함을 알 수 있다.
+
+
+
+
+#### Problem 2. In this question, you practice data cleansing as well as computational statistical inference. We use a 2010 Census data set from the KOSIS (KOrean Statistical Information Service), available at http://kosis.kr/statisticsList/statisticsList_01List.jsp?vwcd=MT_ZTITLE&parmTabId=M_01_01.
+
+
+##### a. Download Seoul’s district population data as follows. Select “인구·가구 -> 인구총조사 -> 인구부문 -> 총조사인구(2015년 이후) -> 연령 및 성별 인구 - 읍면동(2015), 시군구(2016~) 수록기간 년 2015~2018”. This will create a new tab. In this new tab, select the “행정구역별(읍면동)” tab and uncheck “1레벨 전체선택” to only check “서울특별시”. Then check “2레벨 전체선택”. After that, select “연령별” tab, uncheck “1레벨 전체선택”, and only check “합계”. Click the download icon and download the data as “EXCEL(xlsx)” format with “셀병합” unchecked. Open the downloaded file in Microsoft Excel and save as the CSV format. Now read the data in R using the tidyverse function read_csv(). This data set is not as clean as the nycflights13 data set in class; there are two header lines and that are peripheral to the core information; and the numerical values are expressed as strings with commas. e.g., "9,631,482" instead of 9631482. Also, for some reason it contains districts of other cities. Using the help command ?read_csv to learn about the function, design an R expression that will give you the tibble called seoul2018 that has 25 rows and 10 columns.
+
+/etc 폴더에 다운로드된 csv 파일이 "mydata.csv " 라는 이름으로 존재한다.
+
+
+이 CSV파일을 다음 코드를 통해 seoul2018이라는 변수에 담아주었다.
+
+
+```{r}
+myheader = read_csv("etc/mydata.csv", skip = 1, col_names = FALSE, locale = locale("ko", encoding = 'euc-kr', grouping_mark = ','), n_max = 1)
+
+mydata <- read_csv("etc/mydata.csv", skip = 3, col_names = FALSE, locale = locale("ko", encoding = 'euc-kr', grouping_mark = ','), n_max = 25) 
+
+colnames(mydata) = myheader
+
+seoul2018 <- mydata
+```
+
+먼저, 데이터에서 3번째줄에 우리가 쓰지 않을 서울특별시 총합 데이터가 있는데, column name은 2번째 줄에 존재하므로 3번째줄을 무시하면서 column name을 받아오는 방법은 read_csv를 두번 쓰지 않는한 없었으므로,
+
+read_csv를 두번 이용해 먼저 column name을 받아온 다음, 데이터에 column name을 설정해 주었다.
+
+또한, 다운로드 받은 데이터의 encoding이 euc-kr이었으므로, 인코딩을 이렇게 바꿔서 저장하였다.
+
+그 외에 9,631,482와 같이 숫자 내부에 있는 , 과 같은 구분자는 locale의 grouping_mark 값의 default값이 ','이라 자동으로 처리가 되긴 하지만 혹시 몰라 locale에 추가해주었다.
+
+위와같이 데이터를 받아서 변환하였다.
+
+
+
+
+##### b. The resulting tibble is not tidy. Tidy seoul2018 to create a new tibble named seoul2018tidy. Explain your reasoning.
+
+```{r}
+seoul2018
+```
+
+seoul2018 데이터를 자세히 보면, 다음과 같은 점들을 발견할 수 있다.
+
+1. 연령별 column에 들어있는 값들은 합계로 모두 같다.
+
+2. 다른 column으로 부터 계산 될 수 있는 column들이 존재한다.
+예를 들어, 총인구, 총인구 성비, 내국인, 내국인 성비등은 총인구 (남), 총인구 (여), 내국인 (남), 내국인 (여)를 통해 계산될 수 있다.
+
+3. 총인구 자체가 내국인 + 외국인의 합이므로, 총인구 (남), 총인구 (여) column은 외국인 (남), 외국인 (여), 내국인(남), 내국인(여) column이 있으면 계산될 수 있다. 
+
+이러한 점에서 보면, 일단 연령별 column은 모두 상수이므로 redundant한 값이므로 제거해도 된다.
+
+또한, 총인구, 총인구 성비, 내국인, 내국인 성비 column 역시 총인구 (남), 총인구(여), 내국인 (남), 내국인(여)를 통해 계산할 수 있으므로 redundant한 column이 되고,
+
+한층 더 나아가, 총인구 (남), 총인구 (여) 보다는 외국인 (남), 외국인 (여), 내국인 (남), 내국인 (여)와 같은 column으로 존재하는것이 데이터를 더 활용하기 편하다. 즉, 총인구 (남) 과 총인구 (여)에는 하나의 cell에 두 데이터의 합이 들어가 있으므로, 이를 해결해야 tidy 하다고 할 수 있다.
+
+따라서 데이터를 tidy 하게 만들기 위해, 다음과 같은 과정을 거쳤다.
+
+```{r}
+seoul2018tidy <- seoul2018 %>% 
+select(1,4,5,8,9) %>% 
+mutate(`외국인_남자(명)` = `총인구_남자(명)` - `내국인_남자(명)`, `외국인_여자(명)` = `총인구_여자(명)` - `내국인_여자(명)`) %>% 
+select(-2,-3)
+```
+
+
+먼저 redundant한 column들을 제거한 뒤, 총인구 (남)과 총인구 (여) column을 내국인(남), 내국인 (여) column을 통해 분해해서 외국인(남), 외국인(여) column을 얻어내고, 더이상 필요없는 총인구 (남)과 총인구 (여) column을 제거하면 다음과 같아진다.
+
+```{r}
+seoul2018tidy
+```
+
+
+물론 tidy data의 정의인 다음 경우만 신경쓰면
+
+1. Each variable must have its own column.
+
+2. Each observation must have its own row.
+
+3. Each value must have its own cell.
+
+seoul2018의 데이터의 경우, 연령별 column을 제외하면 각각의 observation이 자신의 row안에 들어있고,
+각 변수가 자신만의 column을 가지며, 각 값이 자기 자신만의 셀을 가지므로 
+
+"seoul2018tidy <- seoul2018 %>% 
+select(-2)" 
+와 같이 연령별 column 만 날려도 되긴 하지만, 그렇게 하지 않고 데이터를 이용하기 편하게 하기 위해 위와 같이 정말 필요한 observation을 제외하고는 제거하였다.
+
+
+
+
+##### c. The major data cleansing task is to get rid of the commas in the numerical values. Study the “Parsing a vector” section of Lecture 5 and convert all the columns where numerical values are expressed as strings with commas into numeric vectors.
+
+
+```{r}
+str(seoul2018)
+```
+
+problem2-a 에서 만들었던 seoul2018 data는 애초에 comma로 구분된 string을 numeric 형으로 변환되도록 했기 때문에, 기본이 numeric 형이고, 따라서 이를 통해 만든 seoul2018tidy data의 각 column도 numeric이라 numeric으로의 변환을 할 필요가 없으므로, 다른 데이터를 이용하여 numeric 하게 parsing하는 경우를 보이도록 하겠다.
+
+
+
+parse_number("string") 코드를 이용하면 콤마(',')로 구분된 string data를 numeric vector로 바꿀 수 있다.
+
+
+예를 들어,
+
+```{r}
+test <- tibble(a = c("12,345","123,534"), b = c("67,890","1,123,634"),
+c = c("34,123","317,856,258"))
+
+str(test)
+```
+
+위와 같은 data는 각 column이 chr 형인데,
+
+
+```{r}
+new_test <- test %>% mutate(a = parse_number(a), b = parse_number(b), c = parse_number(c))
+
+str(new_test)
+```
+
+위의 코드를 통해 각 column을 numeric 형태로 바꿔줄 수 있다.
+
+
+
+##### d. Finally, data analysis. Take the column corresponding to the total population of each district from the final data frame (this should be the second column if the previous steps were done correctly) and store it as a vector into pops. Plot the histogram of pops, and compare this with the histogram of a normal random vector with the same length, having the same mean and variance.
+
+tidy_data에 대한 해석이 달라서, 총 population에 대한 column이 2번째 column에 들어가진 않는다.
+
+대신, 다음과 같이 각 구역의 총 인구를 계산할 수 있다.
+
+```{r}
+total_pop <- seoul2018tidy %>% 
+transmute(`총인구(명)` = `외국인_남자(명)` + `외국인_여자(명)` + `내국인_남자(명)` + `내국인_여자(명)`)
+
+pops <- pull(total_pop)
+
+pops
+```
+
+pull을 통해 total_pop을 vector로 바꿔주었다.
+
+이제 pops에 대한 histogram과 이것과 길이가 똑같고, 평균과 분산이 똑같은 벡터와 비교해보자.
+
+```{r}
+my_norm <- rnorm(length(pops),mean(pops),sd(pops))
+
+my_norm
+```
+
+과 같이 길이가 pops와 같고, 평균과 표준편차가 pops와 같은 random normal vector를 만들고,
+
+```{r}
+hist(pops, breaks = 10)
+```
+
+```{r}
+hist(my_norm, breaks = 10)
+```
+
+와 같이 히스토그램을 그려서 비교해 보았다.
+
+
+데이터 수가 25개밖에 안되서 듬성듬성하게 그려지긴 하지만, 대강 비슷한 모양으로 생겼음을 알 수 있다.
+
+
+##### e. Consider the numbers in the finite vector pops as the population distribution, draw a sample of size 10 with replacement from this population. Is the mean of this vector the same as the mean of the population? Draw another sample of size 10 with replacement. Is the sample mean the same as before? Why or why not?
+
+```{r}
+my_sample1 <- sample(pops, size = 10, replace = TRUE)
+
+my_sample1
+```
+
+sample 함수를 사용하면, 기존에 존재하는 데이터에서 랜덤 샘플을 뽑을 수 있다.
+
+이 vector의 평균과 pops의 평균을 비교해보자.
+
+```{r}
+mean(my_sample1)
+```
+
+```{r}
+mean(pops)
+```
+
+비슷하긴 하지만, 똑같은 평균을 가지지는 않음을 알 수 있다.
+
+```{r}
+my_sample2 <- sample(pops, size = 10, replace = TRUE)
+
+my_sample2
+```
+
+```{r}
+mean(my_sample2)
+```
+
+다른 샘플을 뽑았을때, 기존 my_sample1과 pops의 평균과도 다름을 알 수 있다. 
+
+운이 아주 좋다면야 똑같은 값이 나올수도 있지만,
+일반적으로는 값이 다른것이 정상인데,
+
+왜냐하면 기존에 존재하던 pops 벡터에서 랜덤하게, with replacement를 통해 10개씩의 데이터를 뽑은것의 평균을 내는 것이므로, pops 벡터 내부의 25개의 데이터가 서로 다른값이라, sampling을 했을때 sample1과 sample2가 똑같은 data set이 뽑힐 가능성은 ((1/25)^10) * factorial(10) ~= 
+3.805073e-08 정도로 매우 낮기 때문에,
+
+sample mean이 다른것이 정상이다.
+
+
+##### f. Using the function replicate(), take the mean of the sample means. Increase the number of replications from 100 to 1000, and to 10000, and compare the means to the population mean. What do you observe? What is the phenomenon that you observe called?
+
+
+
+replicate(n, expr)는 n으로 지정된 횟수만큼 expr을 실행한 결과를 리턴해주는 함수이다.
+
+이를 이용해, 다음과 같이 10번 sampling을 한 sample mean을 얻을 수 있다.
+
+```{r}
+ten_times <- replicate(10, mean(sample(pops,size = 10, replace = TRUE)))
+
+ten_mean <- mean(ten_times)
+```
+
+마찬가지로, 100번, 1000번, 10000번 한 결과도 보면
+
+```{r}
+hun_times <- replicate(100, mean(sample(pops,size = 10, replace = TRUE)))
+
+thou_times <- replicate(1000, mean(sample(pops,size = 10, replace = TRUE)))
+
+tthou_times <- replicate(10000, mean(sample(pops,size = 10, replace = TRUE)))
+
+hun_mean <- mean(hun_times)
+
+thou_mean <- mean(thou_times)
+
+tthou_mean <- mean(tthou_times)
+```
+
+과 같아지고,
+
+이 결과를 비교해보면
+
+```{r}
+mean(pops)
+
+ten_mean
+
+hun_mean
+
+thou_mean
+
+tthou_mean
+```
+
+반복횟수가 많아질수록, pops의 평균과의 차이가 줄어듬을 확인할 수 있다.
+
+각 표본에서 size가 10인 표본의 평균을, 10, 100, 1000, 10000번 샘플링 하는 행위는 size 10인 표본평균의 분포를 따르는 sample을 각각 10번, 100번, 1000번, 10000번 뽑는것과 같다. 즉, 표본평균을 계속해서 sampling 한다음 합치고, sampling 한 횟수로 나눠준것과 같다.
+
+즉, 다음 식에서 n만 10, 100, 1000, 10000으로 바뀌는것이다.
+
+$\frac{1}{n}\sum_{k=1}^{n}\bar{{X}_{k}}$
+
+$\bar{{X}_{i}} = \frac{1}{10}\sum_{j=1}^{10}{X}_{ij}$
+
+
+이때, 표본 평균의 평균은 모집단의 평균과 같으므로,
+($E(\bar{X}) = E(X)$)
+결국 sampling한 횟수가 많을수록, 즉 n이 커질수록 다음과 같은 관계가 성립하는것을 추측할 수 있다.
+
+$\frac{1}{n}\sum_{k=1}^{n}\bar{{X}_{k}}  \rightarrow  E(\bar{X})$
+
+
+즉, n이 증가할수록 표본평균의 평균이 표본평균의 기댓값에 가까워지는것이다.
+
+
+이렇게 모집단에서 추출한 표본 평균이 n이 커질수록, 전체 모집단의 평균과 가까워 지는것을 큰수의 법칙이라 한다. (law of large numbers)
+
+$\frac{1}{n}\sum_{k=1}^{n}{X}_{k}  \rightarrow  E(X)$
+
+
+
+##### g. Repeat part (e) with the sample size increased from 10 to 25, and then to 100. What can you say about the numbers?
+
+```{r}
+ten_times_25 <- replicate(10, mean(sample(pops,size = 25, replace = TRUE)))
+
+hun_times_25 <- replicate(100, mean(sample(pops,size = 25, replace = TRUE)))
+
+thou_times_25 <- replicate(1000, mean(sample(pops,size = 25, replace = TRUE)))
+
+tthou_times_25 <- replicate(10000, mean(sample(pops,size = 25, replace = TRUE)))
+
+ten_mean_25 <- mean(ten_times_25)
+
+hun_mean_25 <- mean(hun_times_25)
+
+thou_mean_25 <- mean(thou_times_25)
+
+tthou_mean_25 <- mean(tthou_times_25)
+```
+
+표본 크기가 25인 경우
+
+```{r}
+ten_times_100 <- replicate(10, mean(sample(pops,size = 100, replace = TRUE)))
+
+hun_times_100 <- replicate(100, mean(sample(pops,size = 100, replace = TRUE)))
+
+thou_times_100 <- replicate(1000, mean(sample(pops,size = 100, replace = TRUE)))
+
+tthou_times_100 <- replicate(10000, mean(sample(pops,size = 100, replace = TRUE)))
+
+ten_mean_100 <- mean(ten_times_100)
+
+hun_mean_100 <- mean(hun_times_100)
+
+thou_mean_100 <- mean(thou_times_100)
+
+tthou_mean_100 <- mean(tthou_times_100)
+```
+
+
+표본 크기가 100인 경우.
+
+
+```{r}
+mean(pops)
+
+ten_mean_25
+
+hun_mean_25
+
+thou_mean_25
+
+tthou_mean_25
+
+ten_mean_100
+
+hun_mean_100
+
+thou_mean_100
+
+tthou_mean_100
+```
+
+추출하는 표본의 크기가 클수록, (sample size가 클수록), 표본 평균의 평균을 구할때, 표본평균의 개수가 많을수록 모집단의 평균에 더욱 가까워짐을 알 수 있다.
+
+따라서 표본의 크기 (sample size)가 클수록, 더 많은 표본평균에 대해 평균을 낼수록 모집단의 평균과의 차이가 점점 작아짐을 말할 수 있다.
+
+
+##### h. Again using replicate(), plot the histogram of 10000 sample means for sample sizes 10, 25, and 100. Do the histograms look like hist(pops), or something else? What is this phenomenon called?
+
+```{r}
+hist(tthou_times)
+```
+
+sample size 10
+
+```{r}
+hist(tthou_times_25)
+```
+
+sample size 25
+
+```{r}
+hist(tthou_times_100)
+```
+
+sample size 100
+
+```{r}
+hist(pops)
+```
+
+hist(pops)
+
+
+이렇게 그려보면, sample size가 커질수록 pops보다는 다른 형태의 그래프와 닮았음을 알 수 있다.
+
+사실 10000번 추출해서 그린 저 그래프들은 다음과 같이 표본평균의 평균(즉, 모평균)을 평균으로 하고, 표본평균의 표준편차(모표준편차 /  sqrt(n))를 표준편차로 하는   정규분포의 그래프와 비슷함을 알 수 있다.
+
+
+여기서 표본평균의 표준편차는 $\frac{\sigma  }{\sqrt{n}}$
+
+즉, 모표준편차를 sample의 size로 나눠준것과 같으므로,
+
+sample size가 n=10, 25, 100으로 커질수록 10000번 sampling한 그래프들의 너비가 점점 좁아짐을 알 수 있다.
+
+
+
+```{r}
+tthou_norm <- rnorm(10000,mean(pops),sd(pops)/sqrt(100))
+
+hist(tthou_norm)
+```
+
+
+이러한 현상을 중심극한정리라고 한다. 즉, 임의의 분포를 따르는 모집단에서의 표본평균이, n이 커질수록 다음과 같은 분포로 근사해가는것을 중심극한정리라 한다.
+
+$\frac{1}{n}\sum_{k = 1}^{n}{X}_{k} \rightarrow N(\mu , \sigma^2/n)$
+
+정확한 형태로 쓰면,
+
+$\sqrt{n}(\bar{X} - \mu )  \rightarrow  N(0,\sigma^2)$
+
+
+ 
+##### i. Now suppose you are given a new data set of size 10 whose mean is 204885. Do you think this data set is taken from Seoul’s population? Justify your answer by comparing the new sample mean to the distribution of sample means considered in parts (d) – (i). (Hint. quantile(). Use 2.5% and 97.5% quantiles.)
+
+
+```{r}
+mean(pops)
+```
+
+pops의 평균을 확인해보면 386957.4로, 204885와는 매우 큰 차이가 남을 알 수 있다.
+
+이를 볼때, 이 데이터가 서울시의 인구에서 뽑혔을 가능성이 매우 낮으므로, 이 데이터는 서울시의 인구에서 뽑힌 데이터가 아님을 짐작할 수 있다.
+
+이러한 생각을 정당화하기 위해, 지금까지 구했던 sample size가 10, 25, 100이었던 sample mean들의 분포와 비교해보자.
+
+n = 10000정도면 충분히 크다고 생각할 수 있으므로, 중심극한 정리에 의해 sample mean들은 근사적으로 normal distribution을 따른다고 생각할 수 있다.
+
+따라서 만약 이 데이터가 서울시 인구에서 뽑혀나온 sample mean이라면, 모집단의 평균인 (sample mean의 평균) 386957.4 근처의 값을 가질 확률이 높음을 알 수 있다.
+
+
+```{r}
+quantile(tthou_times, probs = c(0.025, 0.975))
+```
+
+sample size가 10일때의 표본평균의 2.5% 분위수와 97.5% 분위수.
+
+```{r}
+quantile(tthou_times_25, probs = c(0.025, 0.975))
+```
+
+sample size가 25일때의 표본평균의 2.5% 분위수와 97.5% 분위수.
+
+```{r}
+quantile(tthou_times_100, probs = c(0.025, 0.975))
+```
+
+sample size가 100일때의 표본평균의 2.5% 분위수와 97.5% 분위수.
+
+
+모두 204885와는 큰 차이를 보인다. 
+
+특히 sample size가 10일때의 표본평균의 2.5%분위수와 97.5%의 분위수를 보면, 2.5%분위수와 204885와의 차이가 꽤 많이 남을 알 수 있고,
+
+따라서 sample size가 10일때, 데이터의 평균이 204885일 확률은 2.5%미만이므로, 이 데이터가 서울시의 인구에서 추출되었다고 보기에는 무리가 있다.

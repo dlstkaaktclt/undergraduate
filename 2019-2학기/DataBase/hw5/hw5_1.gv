@@ -1,0 +1,13 @@
+graph ER {
+	node [shape=record]
+	patient [label=<<table border="1" cellborder="0" cellspacing="1"><tr align="center"><td><table border="1" cellborder="0" cellspacing="1"><tr align="center"><td>patient</td></tr></table></td></tr><tr align="center"><td><table border="1" cellborder="0" cellspacing="1"><tr align="left"><td><u>id</u></td></tr><tr align="left"><td>name</td></tr><tr align="left"><td>log</td></tr></table></td></tr></table>>]
+	doctor [label=<<table border="1" cellborder="0" cellspacing="1"><tr align="center"><td><table border="1" cellborder="0" cellspacing="1"><tr align="center"><td>doctor</td></tr></table></td></tr><tr align="center"><td><table border="1" cellborder="0" cellspacing="1"><tr align="left"><td><u>id</u></td></tr><tr align="left"><td>name</td></tr><tr align="left"><td>rank</td></tr><tr align="left"><td>position</td></tr></table></td></tr></table>>]
+	information [label=<<table border="1" cellborder="0" cellspacing="1"><tr align="center"><td><table border="1" cellborder="0" cellspacing="1"><tr align="center"><td>information</td></tr></table></td></tr><tr align="center"><td><table border="1" cellborder="0" cellspacing="1"><tr align="left"><td><u>test_number</u></td></tr><tr align="left"><td>name</td></tr><tr align="left"><td>date</td></tr><tr align="left"><td>patient_id</td></tr><tr align="left"><td>doctor_id</td></tr></table></td></tr></table>>]
+	node [shape=diamond]
+	test_and_examination
+	test_and_examination -- doctor [label=1 len=0.5]
+	test_and_examination -- patient [label=m len=0.5]
+	test_and_examination -- information [len=0.3 style=dashed]
+	label="\n\nHW5-1 hospital"
+	fontsize=15
+}

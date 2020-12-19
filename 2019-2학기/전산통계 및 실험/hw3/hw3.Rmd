@@ -1,0 +1,1062 @@
+
+---
+title: "326.212 Homework 3"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+library(stringr)
+library(forcats)
+library(lubridate)
+```
+
+
+
+## 2014-16757
+## 컴퓨터공학부 김보창
+
+### Textbook 13.2.1
+
+#### Problem 1. Imagine you wanted to draw (approximately) the route each plane flies from its origin to its destination. What variables would you need? What tables would you need to combine?
+
+각 비행기가 출발지에서 도착지까지 가는 경로를 근사적으로 그리기 위해서는, 비행기의 tailnum 뿐만 아니라, 출발지와 도착지의 위치와, 비행기가 어디에서 출발해서 어디로 도착하는지, 비행정보가 필요하다.
+
+따라서 비행기의 출발지와 도착지가 무엇인지는 flights 테이블의 origin, dest column이 해당하는 정보를 가지고, 각 origin, dest의 실제 위치는 airports 테이블의 lat(경도)과 lon(위도)을 통해 알 수 있으므로, flights 테이블과 airports 테이블의 경도 정보를 origin으로 1번, dest로 1번씩 inner join하여 origin의 경도/위도와 dest의 경도/위도를 표기하도록 만든다.
+
+여기서 inner join을 하면, flights 테이블에서 origin이나 dest가 누락된 경우나, 해당 origin이나 dest에 해당하는 데이터가 airports 테이블에 없는경우를 제거할 수 있다.
+
+```{r}
+planes_route <- flights %>% 
+inner_join(select(airports, origin = faa, origin_lat = lat, origin_lon = lon), by = "origin") %>% 
+inner_join(select(airports, dest = faa, dest_lat = lat, dest_lon = lon), by = "dest") %>% 
+arrange(tailnum, year, month, day, hour) %>% 
+select(tailnum, year, month, day, hour, origin, origin_lat, origin_lon, dest, dest_lat, dest_lon)
+
+planes_route
+```
+
+
+위와같이 데이터를 가공하면, 각 plane들이 언제, 어디에서 출발하고, 어디로 도착하는지를 알 수 있다.
+
+이제, 이 데이터를 통해 각 plane이 어디로 이동하는지를 그려볼 수 있다.
+
+예를들어, tailnum이 N0EGMQ 라는 비행기가 어디에서 어디로 이동하는지를 알고 싶다면, 다음과 같은 코드를 통해 이 비행기의 이동 경로를 알아볼 수 있다.
+
+```{r}
+planes_route %>% 
+filter(tailnum == "N0EGMQ") %>% 
+ggplot(aes(x = origin_lon, xend = dest_lon, y = origin_lat, yend = dest_lat)) +
+geom_segment(arrow = arrow(length = unit(0.3, "cm"))) +
+labs(x = "longitude", y = "latitude") +
+borders("state")
+```
+
+미국 내부에서 이동하는 경로
+
+```{r}
+planes_route %>% 
+filter(tailnum == "N0EGMQ") %>% 
+ggplot(aes(x = origin_lon, xend = dest_lon, y = origin_lat, yend = dest_lat)) +
+geom_segment(arrow = arrow(length = unit(0.1, "cm"))) +
+labs(x = "longitude", y = "latitude") +
+borders("world")
+```
+
+세계에서 이동하는 경로
+
+
+
+### Textbook 13.3.1
+
+#### Problem 2. Identify the keys in the following datasets (You might need to install some packages and read some documentation.)
+
+각 dataset에서 key를 찾기 위해서는 그 dataset의 한 observation을 유일하게 결정하는 column들의 집합을 찾으면 된다.
+
+##### 1. Lahman::Batting
+
+먼저, playerID가 키라고 생각하고 다음 코드를 실행해보았다.
+
+```{r}
+Lahman::Batting %>% 
+count(playerID) %>% 
+filter(n > 1)
+```
+
+playerID만으로는 각 observation을 유일하게 결정하지 못하는것을 알 수 있다.
+
+```{r}
+Lahman::Batting %>% 
+count(playerID, yearID) %>% 
+filter(n > 1)
+```
+
+playerID, yearID를 통해 보아도, 각 observation이 유일하게 결정되지 않음을 알 수 있다.
+
+
+```{r}
+Lahman::Batting %>% 
+count(playerID, yearID, stint) %>% 
+filter(n > 1)
+```
+
+playerID, yearID, stint를 모두 사용해보면, 같은 순서쌍을 가지는 데이터의 개수는 1개씩이므로,
+위 코드의 실행결과로 아무것도 나오지 않는다.
+따라서 (playerID, yearID, stint)가 이 집합의 key인것을 알 수 있다.
+
+실제로 ?Lahman::Batting을 통해 확인해보면, playerID는 각 플레이어의 ID, yearID는 활동년도, stint는 시즌에 해당하는 데이터임을 알 수 있다.
+
+##### 2. babynames::babynames
+
+```{r}
+# install.packages("babynames")
+library(babynames)
+```
+
+먼저, babynames라는 패키지를 설치하고 import해야한다.
+
+```{r}
+str(babynames::babynames)
+```
+
+babynames라는 테이블을 살펴보면, 각 년도마다 남/여아 에게 지어진 이름에 대한 데이터임을 알 수 있고, 따라서 (year, sex, name)이 key일것으로 추측할 수 있다.
+
+```{r}
+babynames::babynames %>% 
+count(year, sex, name) %>% 
+filter(n > 1)
+```
+
+실제로 (year, sex, name)이 key인것을 알았다.
+
+
+##### 3. nasaweather::atmos
+
+```{r}
+# install.packages("nasaweather")
+library(nasaweather)
+```
+
+nasaweather 패키지가 필요하다.
+
+
+```{r}
+str(nasaweather::atmos)
+```
+
+nasaweather의 atmos 테이블을 살펴보면, 각 지역마다, 특정 년, 월의 대기자료를 기록한 테이블임을 추측할 수 있다.
+
+따라서 (lat, long, year, month)가 key일것이라 추측할 수 있다.
+
+```{r}
+nasaweather::atmos %>% 
+count(lat, long, year, month) %>% 
+filter(n > 1)
+```
+
+실제로 (lat, long, year, month)가 key임을 확인 할 수 있다.
+
+##### 4. fueleconomy::vehicles
+
+```{r}
+# install.packages("fueleconomy")
+library(fueleconomy)
+```
+
+fueleconomy 패키지가 필요하다.
+
+```{r}
+str(fueleconomy::vehicles)
+```
+
+fueleconomy::vehicles 테이블을 살펴보면, 각 차량에 대한 정보가 들어있음을 추측할 수 있다.
+
+여기서 이 데이터는 id를 가지고 있으므로, 이 id가 key일것이라 추측할 수 있다.
+
+```{r}
+fueleconomy::vehicles %>% 
+count(id) %>% 
+filter(n > 1)
+```
+
+실제로도 id가 key인것을 확인할 수 있다.
+
+
+##### 5. ggplot2::diamonds
+
+tidyverse는 이미 import 되어있다.
+
+
+```{r}
+str(ggplot2::diamonds)
+```
+
+ggplot2::diamonds 테이블을 살펴보면, 각 다이아몬드에 해당하는 정보들을 모아놓은 것임을 알 수 있다.
+
+그런데 각 diamond를 구별할 수 있는 정보가 없으므로,
+
+각 observation을 unique하게 결정하는 key는 존재하지 않는다.
+
+```{r}
+nrow(distinct(ggplot2::diamonds))
+
+nrow(ggplot2::diamonds)
+```
+
+실제로, 전체 데이터중 중복된 데이터들이 있음을 확인할 수 있다. 따라서 이 데이터의 key는 존재하지 않는다.
+
+```{r}
+ggplot2::diamonds %>% 
+count(carat, cut, color, clarity, depth, table, price, x, y, z) %>% 
+filter(n > 1)
+```
+
+위와 같이 table의 모든 column을 사용해도, 중복된 데이터가 존재함을 알 수 있다.
+
+
+### Textbook 13.4.6
+
+#### Problem 3. Is there a relationship between the age of a plane and its delays?
+
+먼저 plane의 age를 계산하기 위해, 다음과 같이 flights 테이블과 planes 테이블을 join해서 결과를 얻었다.
+
+```{r}
+plane_delay <- flights %>% 
+left_join(select(planes, tailnum, plane_year = year), by = "tailnum") %>% 
+mutate(plane_age = year - plane_year) %>% 
+filter(!is.na(plane_age)) %>% 
+group_by(plane_age) %>% 
+summarise(
+  arr_delay_mean = mean(arr_delay, na.rm = TRUE),
+  arr_delay_sd = sd(arr_delay, na.rm = TRUE),
+  arr_delay_n = sum(!is.na(arr_delay)),
+  dep_delay_mean = mean(dep_delay, na.rm = TRUE),
+  dep_delay_sd = sd(dep_delay, na.rm = TRUE),
+  dep_delay_n = sum(!is.na(arr_delay)))
+
+```
+
+먼저, planes 테이블의 tailnum을 통해 left_join을 한 뒤, 비행기가 만들어진 plane_year를 비행기가 비행한 년도에서 빼서 비행기의 나이인 plane_age를 구하고, plane_age에 따른 arr_delay와 dep_delay의 평균과 표준편차를 각각 구했다.
+
+```{r}
+ggplot(plane_delay) + geom_point(mapping = aes(x = plane_age, y = arr_delay_mean, color = "red")) + geom_point(mapping = aes(x = plane_age, y = dep_delay_mean, color = "blue")) + geom_smooth(mapping = aes(x = plane_age, y = arr_delay_mean, color = "red"), se = FALSE) + geom_smooth(mapping = aes(x = plane_age, y = dep_delay_mean, color = "blue"), se = FALSE) + scale_color_manual(name = "delays", values = c("red" = "red","blue" = "blue") , breaks = c("red", "blue"), labels = c("arr_delay_mean","dep_delay_mean")) + 
+labs(x = "age", y = "minute")
+```
+
+그 뒤, plane_age에 따른 arr_delay와 dep_delay의 추세선을 그려보았다.
+
+이와 같이 보면, 두 딜레이 모두 대략적으로 plane age가 0~10년까지는 delay가 점점 증가하다가, 10년 이상이 되면 age가 커질수록 delay가 점차 감소하는것을 알 수 있다.
+
+이를 통해, 비행기가 도입된지 얼마 안되었을때는 새비행기라 거의 문제가 발생하지 않다가, 도입 후 10년정도까지는 비행기에 문제가 생기는 빈도가 늘어나는데, 정비등의 노하우 부족으로 인해 이러한 문제를 해결하는데에 시간이 많이 걸려서 딜레이가 점점 커지고, 10년이 지나면 비행기를 운용하는 방법과 정비방법에 숙련이 되어서 점점 딜레이가 줄어든다고 추측해볼 수 있다.
+
+
+### Textbook 13.5.1
+
+#### Problem 1. What does it mean for a flight to have a missing tailnum? What do the tail numbers that don’t have a matching record in planes have in common? (Hint: one variable explains ~90% of the problems.)
+
+
+```{r}
+flights %>%
+  anti_join(planes, by = "tailnum") %>%
+  count(tailnum, sort = TRUE)
+```
+
+위 코드를 통해, flights 테이블에서, planes 테이블과 매칭되지 않는 tailnum을 가지는 plane들의 데이터를 받아올 수 있다.
+
+이중 가장 많은 경우를 차지하는것은 tailnum이 NA인 경우임을 알 수 있다.
+
+```{r}
+flights %>% filter(is.na(tailnum))
+```
+
+위와 같이 tailnum이 NA인 경우, 즉 missing tailnum을 가지는 flight들의 데이터를 살펴보면, 공통적으로 dep_time과 arr_time, airtime등이 모두 NA인것을 알 수 있다.
+
+즉, 비행이 취소된 경우, tailnum이 NA임을 알 수 있다.
+
+
+tailnum이 NA가 아닌데 planes table과 매칭되지 않는 자료들이 왜 존재하지 않는지를 알아보기 위해, `?nycflights13::planes`를 통해 도움말을 열어보면,
+
+' American Airways (AA) and Envoy Air (MQ) report fleet numbers rather than tail numbers so can't be matched.'
+
+라는 문장이 존재한다. 즉, American Airways나 Envoy Air의 비행기의 경우에는, tail number에 해당하는 데이터가 planes 테이블에 존재하지 않을 수 있어서, planes table과 매칭되지 않는 자료들이 발생하는 것임을 알 수 있다.
+
+
+### Textbook 14.2.5
+
+#### Problem 2. In your own words, describe the difference between the sep and collapse arguments to str_c().
+
+str_c(arg1, arg2, arg3 ... )에서, sep과 collapse argument의 차이는,
+
+sep argument의 경우, str_c 동작으로 input arguments 를 이어줄때, 사이사이에 sep argument로 들어온 문자열을 추가하여주고,
+
+즉, str_c(arg1, arg2, arg3, sep = " str ")의 경우, 새로 만들어 지는 스트링은 "arg1 str arg2 str arg3"[]의 형태로, 기본 str_c처럼 리턴되는 결과는 arg1, arg2, arg3중에 길이가 가장 긴 벡터가 된다. 
+
+collapse의 경우, str_c 동작으로 input argument들을 모두 이어준 다음, input argument들을 하나의 문자열로 합치면서 사이사이에 collapse argument로 들어온 문자열을 추가시켜 준다.
+
+즉, str_c(arg1, arg2, arg3, collapse = " str ")의 경우, 새로 만들어 지는 스트링은 "arg1[1]arg2[1]arg3[1] str arg1[2]arg2[2]arg3[2] str arg1[3]arg2[3]arg3[3]...."의 형태로, 리턴되는 결과는 input argument에 관계없이 길이 1짜리 벡터가 된다.
+
+
+```{r}
+my_str <- c("number One", "number Two", "number Three")
+your_str <- c("1","2","3","4","5","6","7","8","9")
+
+str_c(your_str, my_str, your_str, sep = ',')
+
+```
+
+str_c에다 sep인자로 ","을 주었을때의 결과. 각 input vector에 대해 str_c() 실행하면서 스트링을 이어주는 도중에, ','를 추가함을 알 수 있다.
+
+
+```{r}
+
+str_c(your_str, my_str, your_str, collapse = ',')
+
+```
+
+str_c에다 collapse로 ","를 주었을때의 결과. 각 input vector에 대해 str_c()연산을 실행해서 스트링을 이어준 다음, 그 결과를 하나의 문자열로 합치는 과정에서 ,가 추가됨을 알 수 있다.
+
+
+```{r}
+str_c(your_str, my_str, your_str, sep = ".", collapse = ',')
+```
+
+두 argument를 같이 사용하면 위와 같은 결과가 나온다.
+
+
+### Textbook 14.3.1.1
+
+#### Problem 1. Explain why each of these strings don’t match a \: "\", "\\", "\\\".
+
+regex(regular expression)을 사용할때,
+str_view(str, regex) 함수에서 regex인자로 전달되는 string은 R 자체 string을 저장할때 한번, regex 엔진에서 한번, 총 두번의 escape character를 해석하는 과정을 거친다.
+
+1. "\" 를 사용한 경우,"\"를 R 내부에서 스트링으로 해석하는 과정에서, "\"가 escape character이므로, R은 "\"뒤에 n이나 t같은, 다른 문자를 기대하게 된다. 즉, escape할 다른 문자를 기다리므로, 따라서 '\'를 찾기 위해 "\"을 사용하면, regex 엔진에 전달되기는 커녕 R string 단에서 정상적인 해석이 되지 않게된다.
+
+2. "\\"를 사용한 경우, "\\"를 R 내부에서 스트링으로 해석하는 과정에서, "\\"는 '\'를 escape 시켜 '\'로 이해된다. 이제, 이 문자열이 regex 엔진에 전달될때는, regex엔진은 이 문자열을 escape character로 해석하게 되므로, regex 엔진은 이 뒤에 escape할 다른 문자를 기다리게 된다.
+따라서 regex엔진에서 정상적으로 해석되지 않아, '\'를 찾는데 이용할 수 없다.
+
+3. "\\\"를 사용한 경우, "\\\"를 R내부에서 스트링으로 해석하는 과정에서, "\\\"는 '\' + escape charactor로 해석되므로, R string은 escape할 다른 문자를 기다리게 되고, 따라서 R string단에서 정상적인 해석이 되지 않는다.
+
+따라서 '\'를 찾고싶으면, "\\\\"를 regex로 사용해야 R string단에서 "\\"로 해석되고, regex 엔진에서 '\'로 정확히 해석되므로, 이렇게 사용해야 한다.
+
+
+### Textbook 14.3.2.1
+
+#### Problem 2. Given the corpus of common words in stringr::words, create regular expressions that find all words that:
+
+#### 1. Start with “y”.
+
+```{r}
+str_view(stringr::words, "^y", match = TRUE)
+```
+
+위와 같이 찾으면 된다.
+(정확히 'y'임에 유의해서, 대문자 Y는 찾는 목록에서 제외하였다.)
+
+
+#### 2. End with “x”
+
+```{r}
+str_view(stringr::words, "x$", match = TRUE)
+```
+
+위와 같이 찾으면 된다.
+(정확히 'x'임에 유의)
+
+
+#### 3. Are exactly three letters long. (Don’t cheat by using str_length()!)
+
+```{r}
+str_view(stringr::words, "^...$", match = TRUE)
+```
+
+위와 같이 찾으면 된다.
+
+#### 4. Have seven letters or more. Since this list is long, you might want to use the match argument to str_view() to show only the matching or non-matching words.
+
+```{r}
+str_view(stringr::words, ".{7,}", match = TRUE)
+```
+
+위와 같이 찾으면 된다.
+
+
+
+### Textbook 14.3.3.1
+
+#### Problem 3. Is “q” always followed by a “u”?
+
+대부분의 영단어는 q 뒤에 u가 오고,
+(ex : quite, quit, quick)
+
+```{r}
+str_view(stringr::words, "q[^u]", match = TRUE)
+```
+
+stringr::words에서 q뒤에 u가 안오는 단어는 없지만,
+
+q 뒤에 u가 오지않는 영단어도 있다.
+
+https://en.wiktionary.org/wiki/Appendix:English_words_containing_Q_not_followed_by_U
+
+를 참조하면, cinq, coq, qi 등등의 단어는 q뒤에 u가 오지 않는다.
+
+
+### Textbook 14.3.4.1
+
+
+stringr::words 데이터셋을 예시로 쓸것이다.
+
+
+#### Problem 3. Create regular expressions to find all words that: 
+
+##### 1. Start with three consonants.
+
+```{r}
+one_regex <- regex("^[bcdfghjklmnpqrstvwxyz]{3}", ignore_case = TRUE)
+
+str_view(stringr::words, one_regex, match = TRUE)
+```
+
+자음 3개로 시작하는 단어들을 찾기 위해, 위와 같은 코드를 사용하였다. 이때, case-sensitive한 경우를 제거하기 위해, ignore_case를 사용한다.
+
+##### 2. Have three or more vowels in a row.
+
+```{r}
+two_regex <- regex("[aeiou]{3,}", ignore_case = TRUE)
+
+str_view(stringr::words, two_regex, match = TRUE)
+```
+
+모음 3개 이상이 연속으로 오는 단어를 찾는다.
+
+##### 3. Have two or more vowel-consonant pairs in a row.
+
+```{r}
+three_regex <- regex("([aeiou][bcdfghjklmnpqrstvwxyz]){2,}", ignore_case = TRUE)
+
+str_view(stringr::words, three_regex, match = TRUE)
+
+```
+
+모음-자음 pair가 2개 이상인 모든 단어를 찾는다.
+
+
+
+```{r}
+answer_regex <- regex("(^[bcdfghjklmnpqrstvwxyz]{3}|[aeiou]{3,}|([aeiou][bcdfghjklmnpqrstvwxyz]){2,})", ignore_case = TRUE)
+
+str_view(stringr::words, answer_regex, match = TRUE)
+```
+
+이 모든 결과를 찾을수 있는 하나의 regex는 위와 같다.
+
+
+
+### Textbook 14.3.5.1
+
+#### Problem 2. Construct regular expressions to match words that:
+
+##### 1. Start and end with the same character.
+
+```{r}
+one_regex <- "^(.)((.*\\1$)|\\1?$)"
+
+str_view(stringr::words, one_regex, match = TRUE)
+```
+
+문자 하나로 이루어진 경우에 유의해야 한다.
+
+
+##### 2. Contain a repeated pair of letters (e.g. “church” contains “ch” repeated twice.)
+
+```{r}
+two_regex <- "([A-Za-z][A-Za-z]).*\\1"
+
+str_view(stringr::words, two_regex, match = TRUE)
+```
+
+만약, case에 관계없이 매칭을 하고싶으면 다음과 같이 사용한다.
+
+```{r}
+another_two_regex <- regex("([a-z][a-z]).*\\1", ignore_case = TRUE)
+
+str_view(stringr::words, another_two_regex, match = TRUE)
+
+str_view("Azaz", another_two_regex, match = TRUE)
+```
+
+
+##### 3. Contain one letter repeated in at least three places (e.g. “eleven” contains three “e”s.)
+
+```{r}
+three_regex <- "([A-Za-z]).*\\1.*\\1"
+
+str_view(stringr::words, three_regex, match = TRUE)
+```
+
+역시, case에 관계없이 매칭을 하고싶으면 다음과 같이 사용한다.
+
+```{r}
+another_three_regex <- regex("([a-z]).*\\1.*\\1", ignore_case = TRUE)
+
+str_view(stringr::words, another_three_regex, match = TRUE)
+
+str_view("AvbxavcxA", another_three_regex, match = TRUE)
+```
+
+
+### Textbook 14.4.1.1
+
+#### Problem 2. What word has the highest number of vowels? What word has the highest proportion of vowels? (Hint: what is the denominator?)
+
+stringr::words 데이터셋에서, 가장 vowel(모음)을 가장 많이 가지는 단어와, 가장 높은 비율의 모음을 가지고 있는 단어를 찾자.
+
+
+```{r}
+my_word <- tibble(word = stringr::words)
+
+vc_word <- my_word %>% 
+mutate(vowels = str_count(word, "[AEIOUaeiou]"),
+       consonants = str_count(word, "[bcdfghjklmnpqrstvwxyzBCDFGHJKLMNPQRSTVWXYZ]"),
+) %>% 
+mutate(ratio_vowels = vowels/(str_length(word)))
+```
+
+먼저, 각 word에 대해 vowel과 consonants 데이터를 가지고 있는 vc_word라는 데이터셋을 생성한 뒤, 이를 이용해 작업한다.
+
+```{r}
+(vc_word %>% filter(vowels == max(vowels)))
+```
+
+먼저, 가장 많은 수의 vowel을 가지는 단어들은 위와 같다.
+
+```{r}
+(vc_word %>% filter(ratio_vowels == max(ratio_vowels)))
+```
+
+가장 높은 비율의 vowel을 가지는 단어는 위와 같다. ('a')
+
+
+### Textbook 14.4.2.1
+
+#### Problem 1. In the previous example, you might have noticed that the regular expression matched “flickered”, which is not a colour. Modify the regex to fix the problem.
+
+앞의 문제에서, 아래와 같은 regex를 통해 색깔에 해당하는 문자열을 찾는다.
+
+```{r}
+colours <- c("red", "orange", "yellow", "green", "blue", "purple")
+colour_match <- str_c(colours, collapse = "|")
+colour_match
+```
+
+```{r}
+more <- stringr::sentences[str_count(stringr::sentences, colour_match) > 1]
+str_view_all(more, colour_match)
+```
+
+
+이렇게 사용하는 경우, flickred와 같이 색깔 red와 는 전혀 상관이 없는 단어까지 매칭되는 경우가 생긴다.
+
+색깔을 나타내는 단어는 단독으로 사용되므로,
+word boundary를 나타내는 '\b'를 이용해,
+다음과 같이 regex를 고치면 우리가 원하는 동작을 하게 만들 수 있다.
+
+```{r}
+colour_regex <- str_c("\\b(",colour_match, ")\\b")
+
+str_view_all(more, colour_regex)
+```
+
+
+위와 같이, 색깔에 해당하는 단어만 매칭되는것을 확인 할 수 있다.
+
+
+
+### Textbook 14.4.3.1
+
+
+#### Problem 1. Find all words that come after a “number” like “one”, “two”, “three” etc. Pull out both the number and the word.
+
+어디서 모든 word를 찾으라는지 알 수 없으므로,
+
+stringr::sentences 데이터셋에서 number 뒤에 오는 word들을 모두 찾아보자.
+
+number의 개수는 한도끝도없이 많지만, 여기서는 대표적인 숫자, 1~10까지의 number뒤에 오는 단어를 찾는 코드를 작성하겠다.
+
+보통 number를 나타내는 단어의 경우, (ex one, two..) 단독으로 사용되므로, word boundary 를 나타내는 '\b'를 사용하고,
+
+number 뒤에 오는 word는 보통 number 뒤에 띄어쓰기가 되어 오므로, 다음과 같이 word를 찾는다. (이때, word가 알파벳으로만 이루어져 있다고 가정한다.)
+
+
+```{r}
+num_word_regex <- regex("\\b(one|two|three|four|five|six|seven|eight|nine|ten) +([A-Za-z]+)", ignore_case = TRUE)
+```
+
+대소문자 구별을 하지 않도록 ignore_case를 TRUE로 설정해주었다.
+
+여기서, number는 첫번째 그룹, 뒤에 오는 word는 두번째 그룹을 형성하므로,
+
+이러한 단어를 가지고 있는 문자열들에
+str_match를 이용하면 이러한 단어들을 추출할 수 있다.
+
+```{r}
+has_num_word <- str_subset(stringr::sentences, num_word_regex)
+
+
+num_word <- str_match(has_num_word, num_word_regex)
+
+num_word
+```
+
+여기서, 매칭된 문자열을 보려면 num_word matrix의 1번째 column,
+각 number와 각 word들을 보려면 num_word matrix의 2번째, 3번째 column을 참조하면 된다.
+
+```{r}
+numbers <- num_word[,2]
+words <- num_word[,3]
+
+numbers
+words
+```
+
+
+여기서, str_match의 경우에는, 각 입력의 regex에 해당하는 문자열을 한번만 찾아주므로,
+
+따라서 모든 word를 찾고 싶다면, str_match_all을 이용하여 찾아주면 된다.
+
+```{r}
+full_num_word <- str_match_all(has_num_word, num_word_regex)
+
+full_num_word
+```
+
+이때의 경우는, 결과가 각 매칭되는 문자열과 그룹들의 matrix들을 담은 리스트가 되므로 number와 word들을 뽑아내기 위해서는 약간의 가공을 거쳐야한다.
+
+```{r}
+full_nums <- c()
+full_words <- c()
+for (i in seq_along(full_num_word)){
+  num <- full_num_word[[i]][,2]
+  word <- full_num_word[[i]][,3]
+  full_nums <- c(full_nums, num)
+  full_words <- c(full_words, word)
+}
+
+full_nums
+
+full_words
+
+```
+
+위와같이 for문을 이용하면, 각 num들과 word들을 뽑아낼 수 있다.
+
+
+
+
+### Textbook 14.4.4.1
+
+#### Problem 3. Switch the first and last letters in words. Which of those strings are still words?
+
+stringr::words의 첫글자와 마지막글자를 바꾸자.
+
+
+다음 regex를 이용하여 첫글자와 마지막 글자를 바꿀 수 있다.
+
+
+```{r}
+switched_word <- str_replace(stringr::words, "^([A-Za-z])(.*)([A-Za-z])$","\\3\\2\\1")
+```
+
+
+그리고 나서, 앞글자와 뒤글자를 바꿔도 word에 속하는 단어들은, 두 집합의 교집합을 구하면 되므로 다음과 같이 얻어낼 수 있다.
+
+```{r}
+intersect(stringr::words, switched_word)
+```
+
+
+### Textbook 14.4.5.1
+
+
+#### Problem 1. Split up a string like "apples, pears, and bananas" into individual components.
+
+
+individual component라는 것을 어떻게 볼지에 따라 다르다.
+
+1. individual component가 word단위일 경우, 아래와 같이 나누면 된다.
+
+```{r}
+one_split <- str_split("apples, pears, and bananas", boundary("word"))[[1]]
+
+one_split
+```
+
+apples, pears, and, bananas로 나뉨을 알 수 있다.
+
+2. individual component가 whitespace로 띄워져있는 덩어리 단위일경우, 아래와 같이 나누면 된다.
+
+```{r}
+two_split <- str_split("apples, pears, and bananas", "\\s+")[[1]]
+
+two_split
+```
+
+3. individual component가 각각 apples, pears, bananas 인경우, 아래와 같이 나누면 된다.
+
+```{r}
+three_split <- str_split("apples, pears, and bananas", ",\\s*(and\\s*)?")[[1]]
+
+three_split
+```
+
+여기서 '\s'는 regex에서 whitespace (tab, space, etc..)를 나타내는 문자이다.
+
+
+### Textbook 15.3.1
+
+#### Problem 1. Explore the distribution of rincome (reported income). What makes the default bar chart hard to understand? How could you improve the plot?
+
+
+```{r}
+ggplot(data = forcats::gss_cat) + geom_bar(mapping = aes(x = rincome))
+```
+
+default bar chart를 활용한 chart는 위와 같이 나오는데, rincome의 level에 해당되는 문자열이 죄다 겹쳐서 어떤 bar가 어떤 rincome에 대한 자료인지 보기가 힘들다.
+
+이를 고치기 위해, 각 text의 각도를 돌려보는 방법을 생각할 수 있다.
+
+```{r}
+ggplot(data = forcats::gss_cat) + geom_bar(mapping = aes(x = rincome)) +
+theme(axis.text.x = element_text(angle = 90))
+```
+
+이렇게 돌려보면, 이제 어떤 rincome에 대한 count가 얼마인지, 알아보기가 편해진다.
+
+
+혹은, 아예 x축과 y축을 뒤집는 방법도 생각해 볼 수 있다.
+
+```{r}
+ggplot(data = forcats::gss_cat) + geom_bar(mapping = aes(x = rincome)) +
+coord_flip()
+```
+
+위와 같이 보면, 훨씬 더 알아보기가 편함을 알 수 있다.
+
+
+
+또한, 이 그래프에서, 그래프에 설명을 조금 추가하고, factor의 level의 순서와 설명을 약간 바꿔서 더 보기 편하게 만들수 있다.
+
+
+```{r}
+easy_gss_cat <- forcats::gss_cat  %>% 
+  mutate(rincome = fct_recode(rincome, "$0 to $999" = "Lt $1000")) %>%
+  mutate(rincome = fct_relevel(rincome, "Not applicable"))
+
+
+ggplot(data = easy_gss_cat) + geom_bar(mapping = aes(x = rincome)) +
+coord_flip() + labs(x = "reported income", y = "number of people")
+```
+
+
+### Textbook 15.4.1
+
+#### Problem 2. For each factor in gss_cat identify whether the order of the levels is arbitrary or principled.
+
+```{r}
+str(forcats::gss_cat)
+```
+
+str을 통해 내부 구조를 파악해보면, gss_cat 내부에는 다음과 같은 factor들이 존재함을 알 수 있다.
+
+각 factor에 대해 순서를 파악해보자.
+
+
+##### marital
+
+```{r}
+levels(forcats::gss_cat$marital)
+```
+
+marital의 경우 과거 결혼 여부와 현재 결혼 상황에 대한 factor임을 알 수 있다.
+
+이경우, 이 factor의 level은 특정한 규칙에 따른 순서가 있음을 알 수있다.
+
+No answer를 제외하면, 아예 결혼을 하지 않은 Never married가 맨 처음에 오고, 
+그 다음 결혼은 했지만 배우자와 같이 살고 있지 않은 Separated, Divorced, Widowed 가 오고, 마지막으로 결혼을 하고, 지금도 배우자와 같이 살고 있는 Married가 마지막에 위치함을 확인 할 수  있다.
+
+따라서 principled이다.
+
+##### race
+
+```{r}
+levels(forcats::gss_cat$race)
+```
+
+race의 경우, 인종에 대한 factor임을 알 수 있는데, level의 ordering을 보면 Other, Black, White, Not applicable이다.
+
+```{r}
+ggplot(data = forcats::gss_cat) +
+geom_bar(mapping = aes(x = race)) +
+scale_x_discrete(drop = FALSE)
+```
+
+이때, 위와같이 plot을 그려보면, 이 level의 ordering은 데이터에서의 각 인종의 수에 따라 ordering 했음을 알 수 있다.
+
+따라서 principled이다.
+
+##### rincome
+
+```{r}
+levels(forcats::gss_cat$rincome)
+```
+
+rincome은 응답자의 소득수준을 나타내는 factor로, level의 순서를 보면 소득에 대한 응답을 거절하거나 무응답한 경우, 그리고 그 후 소득에 따른 내림차순으로 factor level이 ordering 되었음을 알 수 있다.
+
+따라서 principled이다.
+
+
+##### partyid
+
+```{r}
+levels(forcats::gss_cat$partyid)
+```
+
+partyid는 응답자의 정치적 성향을 나타내는 factor로, level의 순서를 보면 무응답과 기타 정당을 제외하고, 강한 공화당 -> 중립 -> 강한 민주당 순서대로 level order가 존재함을 알 수 있다.
+
+따라서 principled이다.
+
+
+##### relig
+
+```{r}
+levels(forcats::gss_cat$relig)
+```
+
+relig는 응답자의 종교를 나타내는 factor로, level의 순서를 보면, 무응답과 모름이 첫번째, 그 뒤 각종 종교들이 나오고, 기타종교, 무교 다음에 유대교, 가톨릭 등이 나오는데, 
+언뜻 봐서는 별다른 ordering principle이 존재하지 않는것으로 보인다.
+
+```{r}
+ggplot(data = forcats::gss_cat) +
+geom_bar(mapping = aes(x = relig)) +
+scale_x_discrete(drop = FALSE) +
+coord_flip()
+```
+
+relig를 기준으로 bar plot을 그려봐도, 딱히 level order를 정하는데에 규칙성이 존재하지 않는것으로 보인다.
+
+따라서 arbitrary다.
+
+
+##### denom
+
+```{r}
+levels(forcats::gss_cat$denom)
+```
+
+denom의 경우, 응답자의 교파를 나타내는 factor로, level의 순서를 보아도, 비슷한 교파끼리 근처에 ordering 되어있는것을 빼면 딱히 level ordering을 하는데 특별한 규칙이 있는것 같지 않아보인다.
+
+
+```{r}
+ggplot(data = forcats::gss_cat) +
+geom_bar(mapping = aes(x = denom)) +
+scale_x_discrete(drop = FALSE) +
+coord_flip()
+```
+
+denom을 기준으로 bar plot을 그려봐도, 딱히 level order를 정하는데에 규칙성이 존재하지 않는것으로 보인다.
+
+따라서 arbitrary다.
+
+
+### Textbook 15.5.1
+
+#### Problem 1. How have the proportions of people identifying as Democrat, Republican, and Independent changed over time?
+
+
+이를 보이기 위해, 먼저 partyid의 레벨을 Democrat, Republican, Independent로 합칠 필요가 있다.
+
+```{r}
+combined_gss_cat <- gss_cat %>%
+  filter(!is.na(partyid)) %>% 
+  mutate(partyid = fct_collapse(partyid,
+    "Other" = c("No answer", "Don't know", "Other party"),
+    "Republican" = c("Strong republican", "Not str republican"),
+    "Independent" = c("Ind,near rep", "Independent", "Ind,near dem"),
+    "Democrat" = c("Not str democrat", "Strong democrat")
+  )) %>%
+  count(year, partyid) %>% 
+  group_by(year) %>% 
+  mutate(prop = n / sum(n))
+
+combined_gss_cat
+```
+
+위와 같이, 각 연도에 따른 rep, ind, dem의 비율을 구해서 combined_gss_cat이라는 테이블을 만들었다.
+
+
+```{r}
+ggplot(data = combined_gss_cat, mapping = aes(x = year, y = prop, color = partyid)) + geom_point() + geom_line() + scale_x_continuous(breaks = seq(2000, 2014, 2)) + labs(y = "proportion")
+```
+
+그 후, 위와 같이 그래프를 그려 각 년도마다 응답자의 정치적 성향 비율의 변화를 볼 수 있게 하였다.
+
+
+
+### Textbook 16.2.4
+
+#### Problem 2. What does the tzone argument to today() do? Why is it important?
+
+?today()를 통해 today의 document를 보면, tzone argument의 역할이 다음과 같이 나와있다.
+
+tzone : a character vector specifying which time zone you would like to find the current date of. tzone defaults to the system time zone set on your computer.
+
+즉, tzone argument를 통해 today 함수가 실행되었을때 어떤 시간대의 시간을 기준으로 오늘의 날짜를 가져올지를 결정하기 때문에,
+만약 tzone argument가 바르게 설정되지 않았다면 원하는 시간대의 날짜를 얻어오지 못할수도 있다.
+
+예를들어, 우리나라의 경우 우리나라의 시간은 그리니치 천문대를 기준으로
+UTC + 9에 해당하는 시간을 가지므로,
+
+```{r}
+today(tzone = "asia/seoul")
+```
+
+과 같이 today 함수를 실행해야 우리가 원하는 날짜를 받아올 수 있다.
+
+다른나라의 경우, 경도에 따른 시간대의 변화 외에도, DST(daylight saving time)와 같이 시각에 영향을 주는 요소들이 존재하므로,
+
+만약 timezone이 다른 지역의 시간을 가져오게 되면 원하는 오늘의 날짜를 받아오지 못할것이다.
+
+```{r}
+today(tzone = "UTC")
+```
+
+예를들어, 위와같이 timezone을 UTC로 해서 오늘의 날짜를 받아오는경우, 한국의 시간이 자정 ~ 오전 9시 이전이라면 한국 날짜와 같지 않은 날짜를 받아올 수 있다.
+
+
+### Textbook 16.3.4
+
+#### Problem 6. What makes the distribution of `diamonds$carat` and `flights$sched_dep_time` similar?
+
+diamonds의 carat열과, flights의 sched_dep_time 열이 무엇이 비슷한지를 보기 위해 각 데이터에 대해 그래프를 그려보았다.
+
+그 전에, flights의 sched_dep_time의 경우, 17시 45분과 같은 데이터를 1745와 같이 표기하기 때문에, xx60~xx99까지의 데이터는 무조건 비어있으므로, 
+
+즉, 시간형 데이터가 아니라서 다루기 힘드므로,
+먼저 시간형 데이터로 바꿔주는 과정을 거쳤다.
+
+```{r}
+make_datetime_100 <- function(year, month, day, time) {
+  make_datetime(year, month, day, time %/% 100, time %% 100)
+}
+
+flights_dt <- flights %>% 
+  filter(!is.na(dep_time), !is.na(arr_time)) %>% 
+  mutate(
+    dep_time = make_datetime_100(year, month, day, dep_time),
+    arr_time = make_datetime_100(year, month, day, arr_time),
+    sched_dep_time = make_datetime_100(year, month, day, sched_dep_time),
+    sched_arr_time = make_datetime_100(year, month, day, sched_arr_time)
+  ) %>% 
+  select(origin, dest, ends_with("delay"), ends_with("time"))
+```
+
+교과서의 코드를 사용하였다.
+
+시간형 데이터를 가지는 flights_dt 자료를 사용한다.
+
+
+```{r}
+ggplot(data = diamonds, mapping = aes(x = carat)) + geom_histogram(binwidth = 0.01)
+```
+
+diamond의 carat에 대한 그래프
+
+```{r}
+ggplot(data = flights_dt, mapping = aes(x = update(sched_dep_time, yday = 1))) + geom_histogram(binwidth = 60)
+```
+
+flights_dt의 sched_dep_time에 따른 이륙시간 그래프.
+
+update함수를 사용하여, 2013년 sched_dep_time 전체의 날짜를 2013년 1월 1일로 바꿔서, 하루의 이륙시간을 구했다.
+
+
+두 그래프를 비교해보면, carat의 경우는 0.5, 1, 1.5, 2... 와 같이 사람이 생각하기 편안한 숫자들 주변에서 분포가 우측에 크게 형성되고, 좌측에는 적게 형성되며,
+
+sched_dep_time의 경우도 각 시간의 정각, 각 시간의 30분 단위즈음에 분포가 크게 형성되고, 그 이외에는 띄엄띄엄 형성된다.
+
+
+이 영향을 더 자세히 보기위해, 그래프를 다시그리면
+
+
+```{r}
+ggplot(data = diamonds, mapping = aes(x = carat %% 1 * 100)) +
+geom_histogram(binwidth = 1)
+```
+
+carat의 소수점만 따와서 그린 그래프.
+
+0, 1/3, 1/2, 2/3 등과 같이 소수점 아래의 수가 사람이 편안하다고 생각하는 단위가 되도록 분포되어 있음을 알 수 있고,
+
+
+```{r}
+ggplot(data = flights_dt, mapping = aes(x = minute(sched_dep_time))) + geom_histogram(binwidth = 1)
+```
+
+각 sched_dep_time의 분만 따와서 그린 그래프.
+
+각 분 수가 5의 배수가 되는 근처에 출발시간이 몰려있어서, 역시 사람이 편안하게 생각하는 시각 주변에 분포되어 있음을 알 수 있다.
+
+
+따라서 이러한 면에서 diamonds의 carat과, flights의 sched_dep_time이 비슷하게 분포되어 있다고 할 수 있다.
+
+
+### Textbook 16.4.5
+
+#### Problem 4. Write a function that given your birthday (as a date), returns how old you are in years.
+
+태어난 날을 받아서, 현재 나이를 출력하는 함수를 만들면 되는데,
+
+나이라는것이 미국 나이 (생년월일을 기준)으로 하는것과, 한국 나이 (태어난 년을 기준)으로 하는 나이가 있으므로,
+
+두 나이를 리턴하는 함수를 모두 작성하였다.
+
+```{r}
+my_birthday <- ymd("1995-06-08")
+```
+
+나의 생일을 저장하는 변수를 선언하고,
+
+
+```{r}
+foreign_age <- function(birthdate){
+  now_date <- today()
+  year_diff <- year(now_date) - year(birthdate)
+  month_diff <- month(now_date) - month(birthdate)
+  day_diff <- day(now_date) - day(birthdate)
+  
+  ifelse(month_diff > 0 | (month_diff == 0 & day_diff >= 0), year_diff, year_diff-1)
+}
+
+foreign_age(my_birthday)
+```
+
+외국 나이를 출력해주는 함수.
+
+
+```{r}
+korean_age <- function(birthdate){
+  now_date <- today()
+  year_diff <- year(now_date) - year(birthdate)
+  year_diff + 1
+}
+
+korean_age(my_birthday)
+```
+
+우리나라 나이를 출력해주는 함수. 
+

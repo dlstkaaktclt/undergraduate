@@ -1,0 +1,530 @@
+---
+title: '326.212 Final Project: Part 3'
+output: html_document
+---
+
+## 2014-16757 김보창
+
+```{r}
+library(RSQLite)
+library(tidyverse)
+library(lubridate)
+con <- dbConnect(SQLite(), "project.sqlite")
+```
+
+## Part 3. Advanced Questions (100 pts)
+
+### Q1. When is the best time of day/day of week/time of year to fly to minimise delays? (50 pts)
+
+
+항공기를 이용하는 승객들은 스케줄을 잡을때 비행기의 도착 예정시간에 맞춰 이후 스케줄을 잡기 때문에, 
+중요한것은 이륙 지연시간이 얼마나 되느냐 보다,  도착 시간까지 얼마나 지연되느냐가 더 중요하다.
+이륙 지연시간이 늘어나면 당연히 도착시간도 지연되지만, 직접적인 영향을 미치는것은 도착 시간이므로,
+따라서 여기서는 Arrival Delay에 초점을 맞춰서 문제에서 원하는 바를 구하도록 하였다.
+
+
+또한, Arrival Delay가 음수인것은 목적지에 더 빨리 도착한것인데, 이러한 부분을 그대로 arr_delay의 평균을 구할때 사용하면, 만약 비행시간의 편차가 커서 arr_delay가 크게 나오는 경우가 많은데, arr_delay가 음수인 경우도 많다면, 이러한 부정적인 영향을 과소평가하게 되는 효과가 생기므로,
+arr_delay가 음수인 경우는 arr_delay를 0으로 만들어주어 평균을 계산하게 하였다.
+
+만약 arr_delay가 음수인 경우를 아예 무시해버리면, 예정시각보다 빠르게 도착하는 긍정적인 경우를 제외시켜버려 arr_delay가 큰 경우들을 너무 과대평가하게 되므로 (예를들어, 1000번 비행을 할때 999번은 예정시간보다 10분 일찍 도착하지만, 1번은 예정시간보다 100분 늦게 도착하는 경우가 있다고 할때, 음수인 경우를 모두 무시해버리면 이때의 지연시간 평균은 100이 되어버린다.) 0으로 만들어 주었다.
+
+
+```{r}
+flights <- tbl(con, "flights")
+
+flights_query_base <- flights %>% 
+    filter(!is.na(Arr_Delay), Cancelled == 0, !is.na(CRS_Dep_Time)) %>% 
+    mutate(Arr_Delay = ifelse(Arr_Delay < 0, 0, Arr_Delay))
+```
+
+
+
+이제, 언제 비행기를 이용해야 가장 딜레이를 최소화 할 수 있는지 알아보자.
+
+
+### best time of day to fly to minimise delay
+
+먼저, 하루중 몇시에 출발하는 비행기를 타는것이 가장 arr_delay를 줄일 수 있는지 알아보자.
+
+
+```{r}
+flights_query <- flights_query_base %>% 
+    group_by(CRS_Dep_Time) %>% 
+    summarise(avg_Arr_Delay = mean(Arr_Delay, na.rm = TRUE),sd_Arr_Delay = sd(Arr_Delay, na.rm = TRUE), count = n())
+
+time_of_day <- collect(flights_query)
+```
+
+먼저, 위와 같이 예정 출발시간에 따른 평균 도착지연시간과 분산을 구하도록 하였다.
+
+이 데이터에서, CRS_Dep_Time의 경우 23:59와 같은 시간이 2359와 같이 저장되어 있으므로,
+즉, Time 형태가 아닌 integer 형으로 저장되어 있어 표기하기가 애매하므로, 먼저 이를 datetime형으로 고쳐주었고,
+
+비행 기록이 너무 적어 delay를 파악하기에 적합하지 않다고 판단되는 경우도 제거해 주었다.
+
+
+```{r}
+adv_time_of_day <- time_of_day %>% 
+    filter(count >= 500) %>% 
+    mutate(CRS_Dep_Time = make_datetime(hour = CRS_Dep_Time %/% 100, min = CRS_Dep_Time %% 100))
+
+```
+
+가공한 데이터를 이용해, plot을 그리면 다음과 같다.
+
+```{r}
+ggplot(data = adv_time_of_day, mapping = aes(x = CRS_Dep_Time, y = avg_Arr_Delay)) +
+  geom_point() + geom_smooth() + scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:%M") + labs(title = "average arrival delay by departure time", x = "scheduled depature time", y = "average Arrival delay (minute)")
+```
+
+평균 도착지연시간의 경우, 00시~05시까지는 충분한 비행기록이 없어, 도착지연시간을 논하기에는 적절하지 않으므로,
+
+05시부터 24시까지의 비행에 대해서 살펴보면, 18시쯤에 출발한 비행기의 평균 도착지연시간이 가장 높고,
+
+05~07시에 출발한 비행기의 평균 도착지연시간이 가장 낮음을 알 수 있다.
+
+
+
+```{r}
+ggplot(data = adv_time_of_day, mapping = aes(x = CRS_Dep_Time, y = sd_Arr_Delay)) +
+  geom_point() + geom_smooth() + scale_x_datetime(date_breaks = "2 hours", date_labels = "%H:%M") + labs(title = "arrival delay variance by departure time", x = "scheduled depature time", y = "Arrival delay variance (minute)")
+```
+
+도착지연시간의 분산의 경우, 18시 즈음과 05~06시즈음의 분산이 큰쪽에 분포되어 있음을 알 수 있으므로,
+
+
+따라서 도착 지연시간의 평균과 분산이 모두 낮은 06시~08시 사이에 출발하는 비행기를 타는것이
+
+딜레이를 최소화 하는데 가장 좋은 시간이라고 판단할 수 있겠다.
+
+
+
+### best day of week to fly to minimise delay
+
+일주일중, 어떤 요일에 출발한 비행기가 가장 도착지연시간이 적은지를 알아보기 위해,
+
+다음과 같이 요일에 따른 평균 도착지연시간과 분산을 구하도록 하였다.
+
+```{r}
+flights_query <- flights_query_base %>% 
+    group_by(Day_Of_Week) %>% 
+    summarise(avg_Arr_Delay = mean(Arr_Delay, na.rm = TRUE), sd_Arr_Delay = sd(Arr_Delay, na.rm = TRUE), count = n())
+
+day_of_week <- collect(flights_query)
+```
+
+
+그 후, 각 요일에 따른 도착 지연시간의 평균과 분산을 그리면 다음과 같다.
+
+```{r}
+ggplot(data = day_of_week) + geom_col(mapping = aes(x = Day_Of_Week, y = avg_Arr_Delay)) + labs(title = "average arrival delay variance by day of week", x = "Day of Week", y = "average Arrival delay (minute)") + scale_x_continuous(breaks = 1:7, labels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))
+```
+
+평균을 그리면, 토요일, 화요일, 수요일 순으로 비행기의 평균 도착지연시간이 낮음을 알 수 있다.
+
+
+```{r}
+ggplot(data = day_of_week) + geom_col(mapping = aes(x = Day_Of_Week, y = sd_Arr_Delay)) + labs(title = "arrival delay variance by day of week", x = "Day of Week", y = "Arrival delay variance (minute)") + scale_x_continuous(breaks = 1:7, labels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))
+```
+
+분산 역시, 토요일, 화요일, 수요일 순으로 도착지연시간의 분산이 낮음을 알 수 있다.
+
+
+따라서 토요일에 비행기를 타야 가장 딜레이를 최소화 할 수 있음을 알 수 있다.
+
+
+### best time of year to fly to minimise delay
+
+best time of year라는 말이 애매하므로,
+
+다음 두가지 방법으로 1년중 딜레이가 최소화 되는 기간을 구하자.
+
+연중 가장 delay가 적은 달과, 달중 가장 delay가 적은 날짜 (한달 31일중 하루)를 구해 이를 종합한 뒤, 앞에서 찾았던 delay를 최소화 하는 시간을 이용해 구하거나,
+
+혹은 전체 1년 365일 (윤년 포함하면 366일)중 가장 delay가 적은 날짜를 찾고, 앞에서 찾았던 delay를 최소화 하는 시간을 이용해 구하자.
+
+두가지 방법을 이용해 구하는것은, 다음과 같은 요인을 무시할 수 없기 때문이다.
+
+
+첫번째 방법의 경우, 다음과 같은 문제점이 있다.
+
+가장 delay가 적은 달과, 달중 가장 delay가 적은 날짜를 종합하여 delay가 적은 달과 날짜를 구한다고 해도, 이 결과를 종합하였을때 365일중에서 가장 delay가 적은 날짜를 구했다고 하기에는 불확실한 면이 크다.
+
+
+두번째 방법의 경우, 다음과 같은 문제점이 있다.
+
+전체 1년중 가장 delay가 적은 날짜를 찾아도, 이 날짜가 가장 delay가 적은 이유가 우연에 의한 것인지, 아니면 특별한 경향성이 있어서 이렇게 되는것인지, 경향성을 파악하기가 힘들고, 왜 이런지 설명하기가 힘들어진다.
+
+1년중 delay가 가장 적은 달과, 각 달중 delay가 가장 적은 날짜에 대한 분석이 있으면 이러한 문제를 완화시킬수 있으므로, 두가지 방법을 모두 사용하도록 하겠다.
+
+
+
+#### 1. 연중 가장 delay가 적은 달과 날짜(31일중 하루)
+
+1년중 어떤 달에 출발한 비행기가 가장 도착지연시간이 적은지 알아보기 위해, 
+
+다음과 같이 달에 따른 평균 도착지연시간과 분산을 구하도록 하였다.
+
+```{r}
+flights_query <- flights_query_base %>% 
+    group_by(Month) %>% 
+    summarise(avg_Arr_Delay = mean(Arr_Delay, na.rm = TRUE), sd_Arr_Delay = sd(Arr_Delay, na.rm = TRUE), count = n())
+
+month_of_year <- collect(flights_query)
+```
+
+위와 같이 각 달에 따른 평균 도착지연시간과 분산을 구하여 month_of_year 테이블에 저장하고, 다음과 같이 각 달에 따른 도착 지연시간의 평균과 분산을 구하였다.
+
+```{r}
+ggplot(data = month_of_year) + geom_col(mapping = aes(x = Month, y = avg_Arr_Delay)) + labs(title = "average arrival delay by month of year", x = "month of year", y = "average Arrival delay (minute)") + scale_x_continuous(breaks = 1:12, labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+```
+
+평균에 따른 그래프를 그려보면, 9월~11월의 비행기의 평균 도착지연시간이 적음을 알 수 있다.
+그리고 9월에 최소의 도착지연시간을 가진다.
+
+
+```{r}
+ggplot(data = month_of_year) + geom_col(mapping = aes(x = Month, y = sd_Arr_Delay)) + labs(title = "arrival delay variance by month of year", x = "month of year", y = "Arrival delay variance (minute)") + scale_x_continuous(breaks = 1:12, labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+```
+
+마찬가지로, 분산에 따른 그래프를 그려보았을때, 9월~11월의 비행기의 도착지연시간의 분산이 적음을 알 수 있고,
+9월의 도착지연시간의 분산이 가장 적음을 알 수 있다.
+
+
+따라서, 9월에 비행기를 타야 가장 delay를 최소화 할 수 있음을 알았다.
+
+
+이제, 1년중 어떤 날에 출발한 비행기가 가장 도착지연시간이 적은지 알아보기 위해,
+
+
+다음과 같이 날에 따른 평균 도착지연시간과 분산을 구하도록 하였다.
+
+```{r}
+flights_query <- flights_query_base %>% 
+    group_by(Day_of_Month) %>% 
+    summarise(avg_Arr_Delay = mean(Arr_Delay, na.rm = TRUE), sd_Arr_Delay = sd(Arr_Delay, na.rm = TRUE), count = n())
+
+date_of_year <- collect(flights_query)
+```
+
+위와 같이 날짜에 따른 평균 도착지연시간과 도착지연시간의 분산을 구하여 date_of_year 테이블로 저장하였다.
+
+
+이제 변환한 데이터를 이용해, 각 날짜에 따른 도착 지연시간에 따른 평균과 분산을 그래프로 그리면 다음과 같다.
+
+```{r}
+ggplot(data = date_of_year) + geom_col(mapping = aes(x = Day_of_Month, y = avg_Arr_Delay)) + labs(title = "average arrival delay by day of year", x = "day of year", y = "average Arrival delay (minute)") + scale_x_continuous(breaks = 1:31, labels = 1:31)
+```
+
+각 달의 6일에 평균이 최소가 되고, 1일과 2일을 제외한 첫주의 평균이 낮은 경향을 띔을 알 수 있다.
+
+
+마찬가지로, 분산도 그려보면
+
+```{r}
+ggplot(data = date_of_year) + geom_col(mapping = aes(x = Day_of_Month, y = sd_Arr_Delay)) + labs(title = "arrival delay variance by day of year", x = "day of year", y = "Arrival delay variance (minute)") + scale_x_continuous(breaks = 1:31, labels = 1:31)
+```
+
+각 달의 6일에 분산이 최소가 되고, 역시 1일과 2일을 제외한 첫주의 분산이 낮은 경향을 띔을 알 수 있다.
+
+
+따라서, 각 달의 6일 근처에 비행기를 이용하면, 가장 delay를 최소화 할 수 있음을 알았다.
+
+
+#### 2. 연중 가장 delay가 적은 날짜. (365일중 하루)
+
+
+1년중 어떤 날에 출발한 비행기가 가장 도착지연시간이 적은지 알아보기 위해,
+
+다음과 같이 날에 따른 평균 도착지연시간과 분산을 구하도록 하였다.
+
+```{r}
+flights_query <- flights_query_base %>% 
+group_by(Month, Day_of_Month) %>% 
+summarise(avg_Arr_Delay = mean(Arr_Delay, na.rm = TRUE), sd_Arr_Delay = sd(Arr_Delay, na.rm = TRUE), count = n())
+
+day_of_year <- collect(flights_query)
+```
+
+day_of_year 테이블에 1년중 각 날짜에 따른 평균 도착지연시간과, 도착지연시간의 분산을 구하도록 하였다.
+
+
+```{r}
+adv_day_of_year <- day_of_year %>% 
+ mutate(date = make_date(year = 1992, month = Month, day = Day_of_Month))
+```
+
+day_of_year table에는 달과 일이 date형태로 들어가 있는것이 아니라, Month와 Day_of_Month의 integer 형태로 들어가 있어 다루기가 어려우므로, make_date 함수를 이용하여 date 형으로 바꿔 다루기 쉽게하였다.
+
+이때, date로 변환할때 윤년인 1992년을 사용하여 2월 29일에 해당하는 데이터를 잃어버리지 않도록 만들어 주었다.
+
+
+```{r}
+min_day_of_year <- adv_day_of_year %>% ungroup() %>% filter(avg_Arr_Delay == min(avg_Arr_Delay) | sd_Arr_Delay == min(sd_Arr_Delay))
+```
+
+그래프에 최소점을 표기하기 위해 min_day_of_year라는 테이블을 따로 만들어, 평균 도착지연시간과 도착지연시간의 분산이 가장 작은 자료들을 따로 저장하게 하였다.
+
+
+그 후, 도착지연시간에 따른 평균과 분산에 따른 그래프를 그렸다.
+
+```{r}
+ggplot(data = adv_day_of_year) + geom_point(mapping = aes(x = date, y = avg_Arr_Delay)) + geom_point(data = min_day_of_year, mapping = aes(x = date, y = avg_Arr_Delay), color = "red") + geom_text(data = min_day_of_year, mapping = aes(x = date, y = avg_Arr_Delay,label = strftime(date, format = "%m %d"))) + labs(title = "average arrival delay by day of year", x = "day of year", y = "average Arrival delay (minute)") + scale_x_date(date_breaks = "1 months", date_minor_breaks = "10 days", date_labels = "%m %d")
+```
+
+평균 도착지연시간의 경우, 11월 3일에 가장 낮은 도착지연시간을 가짐을 알 수 있고, 대략 9월, 10월, 11월 초에 평균 지연시간이 낮음을 알 수 있다.
+
+
+
+```{r}
+ggplot(data = adv_day_of_year) + geom_point(mapping = aes(x = date, y = sd_Arr_Delay)) + geom_point(data = min_day_of_year, mapping = aes(x = date, y = sd_Arr_Delay), color = "red") + geom_text(data = min_day_of_year, mapping = aes(x = date, y = sd_Arr_Delay,label = strftime(date, format = "%m %d"))) + labs(title = "arrival delay variance by day of year", x = "day of year", y = "Arrival delay variance (minute)") + scale_x_date(date_breaks = "1 months", date_minor_breaks = "10 days", date_labels = "%m %d")
+```
+
+도착지연시간의 분산을 통해 그래프를 그리면, 11월 1일이 가장 낮음을 알 수 있고, 11월 3일도 분산이 낮은편에 속한다. 또한, 대략 9월, 10월 ,11월 초에 도착지연시간의 분산이 낮음을 알 수 있다.
+
+
+
+
+
+위 결과들을 종합하여, 결론적으로, 다음과 같은 사실을 알았다.
+
+1. 06:00~08:00 에 출발하는 비행기를 타면 arrival delay를 최소화 할 수 있다.
+2. 토요일, 화요일에 비행기를 타면 arrival delay를 최소화 할 수 있다.
+3. 9~11월에 비행기를 타면 arrival delay를 최소화 할 수 있다.
+4. 각 달의 첫주에 비행기를 타면 arrival delay가 최소화 된다.
+5. 1년중, 11월 초에 비행기를 타면 arrival delay가 최소화 된다.
+
+
+따라서 이를 종합하면, 1년중 11월 초, 토요일 혹은 화요일, 06:00~08:00에 출발하는 비행기를 타면 arrival delay를 최소화 할 수 있을 것이다.
+
+```{r}
+rm(time_of_day)
+rm(adv_time_of_day)
+rm(day_of_week)
+rm(month_of_year)
+rm(date_of_year)
+rm(day_of_year)
+rm(adv_day_of_year)
+rm(min_day_of_year)
+```
+
+
+### Q2. Do older planes suffer more delays? (50 pts)
+
+
+Q1과 다르게, 여기서는 Arr_Delay가 아닌 Dep_Delay를 사용한다.
+
+비행기를 유지보수하고 운용하는 입장에서 중요한것은 착륙 지연시간보다는 이륙 지연시간이 더 중요한데,
+
+착륙 지연의 경우, 이륙 지연에 의한 영향을 제외하면 비행장에 다른 비행기가 착륙을 대기하고 있거나 하는등의 이유로, 비행기의 문제가 아닌, 외부적인 문제가 영향을 주는 빈도가 더 크고,
+
+이륙 지연의 경우 물론 다른 비행기와의 공항 이/착륙 스케줄이 겹쳐서, 외부요인 때문에 이루어지는 경우도 있지만, 비행기의 정비문제 때문에 발생하는것이 주가 되므로, 따라서 여기서는 delay로 이륙지연시간인 Dep_Delay를 사용하도록 한다.
+
+
+
+이제, 각 비행기의 도입년도를 알아오기 위해, database의 airplanes 테이블에서 관련된 정보를 받아오자.
+
+비행기의 도입년도는 airplanes 테이블의 Year column에 저장되어 있다.
+
+(Issue date와 Year중 어떤것이 비행기의 도입년도인지 애매했는데, airplanes 테이블 내부의 N853AS 비행기의 Issue date는 4/14/04, year는 2000인데, https://www.planespotters.net/airframe/Canadair/CRJ-100-Series/N853AS-Delta-Material-Services/ddprHZA1
+링크에서 해당 비행기의 나이가 19.9로 나오는것을 통해 year가 도입년도인것을 알 수 있었다)
+
+
+```{r}
+airplanes_year <- collect(tbl(con, "airplanes")) %>% filter(!is.na(Year), Year != 0) %>% select(TailNum, Year)
+```
+
+위와 같이, year 정보가 존재하는 airplanes 테이블의 원소들에 대해, 비행기의 tailnum과 year에 해당하는 데이터를 받아와 airplanes_year 테이블에 저장하도록 하였다.
+
+
+
+이제, flights 테이블에서 각 비행기의 비행 날짜와 해당하는 Dep_Delay를 받아와야 한다.
+
+비행이 cancel되지 않은 비행들 중, Tail_Num과 Dep_Delay가 존재하는 경우에만 받아오도록 하였다.
+
+
+
+```{r}
+flights <- tbl(con, "flights")
+
+flights_query <- flights %>% filter(!is.na(Dep_Delay), Cancelled == 0,!is.na(Tail_Num)) %>% 
+    select(Year, Tail_Num, Dep_Delay) %>% mutate(Dep_Delay = ifelse(Dep_Delay < 0, 0, Dep_Delay)) %>% rename(flight_Year = Year)
+
+flights_delay <- collect(flights_query) %>% inner_join(airplanes_year, by = c("Tail_Num" = "TailNum")) %>% 
+  transmute(Tail_Num, age = flight_Year - Year, Dep_Delay) %>% 
+  group_by(age) %>%
+  summarise(avg_Dep_Delay = mean(Dep_Delay, na.rm = TRUE), sd_Dep_Delay = sd(Dep_Delay, na.rm = TRUE), count = n())
+```
+
+
+그 후, 위와같이 각 flight들에 대해 비행 년도, Tail_Num과 Dep_Delay를 받아오게 하고,
+
+Q1과 마찬가지로, Dep_Delay가 0보다 작은경우, Dep_Delay를 0으로 만들어 주었다.
+만약 출발시간의 편차가 커서 dep_delay가 크게 나오는 경우가 많은데, dep_delay가 음수인 경우도 많다면, 이러한 부정적인 영향을 과소평가하게 되는 효과가 생기므로,
+Dep_Delay가 0보다 작은경우는 Dep_delay를 0으로 만들어 주어 계산하였다.
+
+그리고 나서 Tail_Num을 이용해 airplanes_year 테이블의 TailNum과 inner_join을 하여 도입년도 정보가 존재하는 비행기들에 대해서만 도입년도를 찾아주었다. (inner_join 부분)
+
+그 후, 비행이 있었던 년도에서 도입년도를 빼주어 age를 만들어 주고, (inner_join 뒤 transmute 부분)
+age로 그루핑 한다음 각 age에 따른 평균 Dep_Delay를 구하도록 하고, 결과를 flights_delay에 저장하였다.
+
+이 계산과정을 할때, 최소한의 데이터만 사용하게 하여 최대한 메모리 소모를 줄이고자 하였다.
+
+```{r}
+flights_delay
+```
+
+그후 나온 데이터를 살펴보면, age가 음수인 데이터들이 존재한다.
+
+이러한 데이터의 경우, 다음과 같은 이유로 나왔을 수 있는데,
+
+첫번째는 flights 테이블에서 비행 기록의 Tail_num을 잘못 기재해서 airplanes 테이블과 join하였을 때, 다른 비행기의 도입년도를 가져왔거나, 혹은 비행 기록의 Year를 잘못 기재해서 age를 구할때 문제가 생기는 경우,
+
+두번째는 airplanes 테이블에서, Tailnum에 해당하는 비행기의 도입년도 자체를 잘못 기재하거나, 실제 도입년도보다 늦은 년도로 기재한 경우 생길 수 있다.
+
+실제로 age가 음수인 데이터들의 count를 살펴보면, 모두 2천개 언저리로, 다른 age보다 개수가 상당히 적음을 알 수 있는데, 아마 두번째 이유로 인해 도입년도가 잘못 적힌 비행기가 존재해서 이러한 음수의 age가 나오는것 같다.
+
+
+따라서, 그래프를 그릴때는 이러한 데이터를 제거하고 그래프를 그릴것이다.
+
+또한, 데이터의 개수가 충분하지 않아 평균 delay의 경향을 파악하기에 적합하지 않다고 판단되는 데이터 역시 제거하였다.
+
+
+```{r}
+adj_flights_delay <- flights_delay %>% filter(age >= 0, count >=10000)
+```
+
+
+이러한 age에 따른 비행기의 평균 departure delay를 실제로 그려보면 다음과 같다.
+
+
+```{r}
+ggplot(data = adj_flights_delay, mapping = aes(x = age, y = avg_Dep_Delay)) + geom_point() + geom_smooth(se = FALSE) + labs(title = "average departure delay by airplane age", y = "average departure delay (minute)")
+```
+
+평균 delay의 경우, 연식이 많아질수록 조금씩 늘어나는 경향을 보이다, 20년이 지난 비행기부터는 다시 내려가는 경향을 보이다 30년이 지난 비행기부터는 굉장히 평균 delay의 분포가 들쭉날쭉 하다.
+
+
+
+```{r}
+ggplot(data = adj_flights_delay, mapping = aes(x = age, y = sd_Dep_Delay)) + geom_point() + geom_smooth(se = FALSE) + labs(title = "departure delay variance by airplane age", y = "departure delay variance (minute)")
+```
+
+반면, departure delay의 분산은 비행기의 나이가 증가할수록 점점 증가하는 경향을 보이는데, 이를 통해 비행기가 낡으면 낡을 수록 이륙 지연이 되는 편차가 심해짐을 알 수 있다.
+
+
+실제로 비행기의 나이에 따라 이륙 지연시간이 길어지는지 확인하기 위해,
+
+몇개의 비행기 모델을 뽑아서 그 모델의 나이에 따른 이륙지연시간의 양상을 살펴보도록 하자.
+
+
+
+#### 1. Boeing - 737 series
+
+보잉 737 기종은 1968년 이후 계속해서 사용되고 있는 보잉사의 비행기 기종이다.
+
+이 737 기종들에 대해, 나이에 따른 Dep_Delay의 양상을  살펴보도록 하자.
+
+```{r}
+airplanes_model <- collect(tbl(con, "airplanes")) %>% filter(!is.na(Year), Year != 0) %>% select(TailNum, Model, Year)
+```
+
+먼저, airplanes_model이라는 테이블에 airplanes 테이블의 정보를 모델명까지 포함하도록 하고,
+
+
+```{r}
+boeing_737_delay <- collect(flights_query) %>% inner_join(airplanes_model, by = c("Tail_Num" = "TailNum")) %>% 
+  filter(startsWith(Model, "737")) %>% 
+  transmute(Tail_Num, age = flight_Year - Year, Dep_Delay) %>% 
+  group_by(age) %>%
+  summarise(avg_Dep_Delay = mean(Dep_Delay, na.rm = TRUE), sd_Dep_Delay = sd(Dep_Delay, na.rm = TRUE), count = n())
+
+adj_boeing_737_delay <- boeing_737_delay %>% filter(count >= 10000)
+```
+
+boeing_737_delay라는 테이블에 age에 따른 평균 이륙지연시간과 이륙지연시간의 분산을 저장하도록 하였고,
+
+count가 충분히 크지 않은 데이터는 제거하여, 데이터의 개수가 충분할때의 그래프만 그리게 하였다.
+
+
+그 후, 앞에서와 같이 나이에 따른 Dep_Delay의 평균과 분산에 대한 그래프를 그려보도록 하자.
+
+
+```{r}
+ggplot(data = adj_boeing_737_delay, mapping = aes(x = age, y = avg_Dep_Delay)) + geom_point() + geom_smooth(se = FALSE) + labs(title = "boeing-737 serise's average departure delay by airplane age", y = "average departure delay (minute)")
+```
+
+평균에 대한 그래프. age가 늘어날수록, Dep_Delay의 평균도 점점 증가함을 알 수 있다.
+
+
+
+```{r}
+ggplot(data = adj_boeing_737_delay, mapping = aes(x = age, y = sd_Dep_Delay)) + geom_point() + geom_smooth(se = FALSE) + labs(title = "boeing-737 serise's departure delay variance by airplane age", y = "departure delay variance (minute)")
+```
+
+분산에 대한 그래프. 대체적으로 age가 늘어날수록, Dep_Delay의 분산이 점점 증가함을 알 수있다.
+
+
+
+
+
+#### 2. AirBus - A320 family
+
+Airbus 사의 A320 패밀리 (A318, A319, A320, A321)에 대해서 나이에 따른 Dep_delay의 양상을 살펴보도록 하자.
+
+```{r}
+airbus_A320_delay <- collect(flights_query) %>% inner_join(airplanes_model, by = c("Tail_Num" = "TailNum")) %>% 
+  filter(startsWith(Model, "A318") | startsWith(Model, "A319") | startsWith(Model, "A320") | startsWith(Model, "A321")) %>% 
+  transmute(Tail_Num, age = flight_Year - Year, Dep_Delay) %>% 
+  group_by(age) %>%
+  summarise(avg_Dep_Delay = mean(Dep_Delay, na.rm = TRUE), sd_Dep_Delay = sd(Dep_Delay, na.rm = TRUE), count = n())
+
+adj_airbus_A320_delay <- airbus_A320_delay %>% filter(count >= 10000)
+```
+
+
+airbus_A320_delay라는 테이블에 age에 따른 평균 이륙지연시간과 이륙지연시간의 분산을 저장하도록 하였고,
+
+count가 충분히 크지 않은 데이터는 제거하여, 데이터의 개수가 충분할때의 그래프만 그리게 하였다.
+
+
+그 후, 앞에서와 같이 나이에 따른 Dep_Delay의 평균과 분산에 대한 그래프를 그려보도록 하자.
+
+```{r}
+ggplot(data = adj_airbus_A320_delay, mapping = aes(x = age, y = avg_Dep_Delay)) + geom_point() + geom_smooth(se = FALSE) + labs(title = "airbus A320 family's average departure delay by airplane age", y = "average departure delay (minute)")
+```
+
+평균에 대한 그래프. age가 늘어날수록, Dep_Delay의 평균도 점점 증가함을 알 수 있다.
+
+
+```{r}
+ggplot(data = adj_airbus_A320_delay, mapping = aes(x = age, y = sd_Dep_Delay)) + geom_point() + geom_smooth(se = FALSE) + labs(title = "airbus A320 family's departure delay variance by airplane age", y = "departure delay variance (minute)")
+```
+
+분산에 대한 그래프. age가 늘어날수록, Dep_Delay의 분산이 점점 증가함을 알 수있다.
+
+
+
+
+따라서 결론적으로, 항공기가 낡으면 낡을수록, 더 큰 이륙지연시간을 가짐을 알 수 있다.
+
+이러한 이유로는, 비행기의 노후화로 인해 더 긴 정비시간이 필요하거나, 문제가 생길 확률이 높아져서라 추측할 수 있다.
+
+
+
+
+```{r}
+rm(airplanes_year)
+rm(flights_delay)
+rm(adj_flights_delay)
+rm(airplanes_model)
+rm(boeing_737_delay)
+rm(adj_boeing_737_delay)
+rm(airbus_A320_delay)
+rm(adj_airbus_A320_delay)
+```
+
+
+```{r}
+dbDisconnect(con)
+```

@@ -1,0 +1,55 @@
+public static void JDBCexample(String userid, String passwd)
+{
+	try{
+		DriverManger  = Class.forName("oracle.jdbc.driver.OracleDriver");
+		Connection conn = DriverManager.getConnection(
+			"jdbc:oracle:thin:@db.yale.edu:2000:univdb", userid, passwd);
+		Statement stmt = conn.createStatement();
+		try{
+			stmt.executeUpdate(
+				"insert into instructor values('77987', 'Kim', "Physics', 98000)");
+		}
+		catch (SQLException sqle){
+			System.out.println("Could not insert a tuple" + sqle);
+		}
+		ResultSet rest = stmt.executeQuery(
+			"select dept_name, avg(salary)
+			from instructor
+			group by dept_name");
+		while(rset.next())
+		{
+			System.out.println(rset.getString("dept_name") + " " + rset.getFloat(2));
+		}
+		stmt.close();
+		conn.close();
+	}
+	catch(Exception  e) {
+		System.out.println("Exception : " + e);
+	}
+}
+
+
+EXEC SQL
+	declare c cursor for
+		select *
+		from instructor
+		where dept_name = 'Music'
+	for update;
+
+EXEC SQL
+	update instructor
+	set salary = salary + 1
+	where current of c;
+
+#sql iterator deptInfolter (String dept_name, int avgSal);
+deptInfolter iter = null;
+#sql iter = {select dept_name, avg(salary)
+	   from instructor
+	   group by dept_name};
+while (iter.next()){
+	String deptName = iter.dept_name();
+	int avgSal = iter.avgSal();
+	System.out.println(deptName + " " + avgSal);
+}
+iter.close();
+

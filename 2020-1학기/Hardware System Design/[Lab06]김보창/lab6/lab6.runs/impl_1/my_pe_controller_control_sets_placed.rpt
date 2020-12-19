@@ -1,0 +1,81 @@
+Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
+| Date         : Mon Apr 27 19:41:53 2020
+| Host         : DESKTOP-FCN3GQL running 64-bit major release  (build 9200)
+| Command      : report_control_sets -verbose -file my_pe_controller_control_sets_placed.rpt
+| Design       : my_pe_controller
+| Device       : xc7z020
+---------------------------------------------------------------------------------------------
+
+Control Set Information
+
+Table of Contents
+-----------------
+1. Summary
+2. Histogram
+3. Flip-Flop Distribution
+4. Detailed Control Set Information
+
+1. Summary
+----------
+
++----------------------------------------------------------+-------+
+|                          Status                          | Count |
++----------------------------------------------------------+-------+
+| Number of unique control sets                            |    15 |
+| Unused register locations in slices containing registers |    20 |
++----------------------------------------------------------+-------+
+
+
+2. Histogram
+------------
+
++--------+--------------+
+| Fanout | Control Sets |
++--------+--------------+
+|      4 |            3 |
+|      5 |            1 |
+|    16+ |           11 |
++--------+--------------+
+
+
+3. Flip-Flop Distribution
+-------------------------
+
++--------------+-----------------------+------------------------+-----------------+--------------+
+| Clock Enable | Synchronous Set/Reset | Asynchronous Set/Reset | Total Registers | Total Slices |
++--------------+-----------------------+------------------------+-----------------+--------------+
+| No           | No                    | No                     |             927 |          216 |
+| No           | No                    | Yes                    |               0 |            0 |
+| No           | Yes                   | No                     |             166 |           39 |
+| Yes          | No                    | No                     |               0 |            0 |
+| Yes          | No                    | Yes                    |               0 |            0 |
+| Yes          | Yes                   | No                     |              95 |           28 |
++--------------+-----------------------+------------------------+-----------------+--------------+
+
+
+4. Detailed Control Set Information
+-----------------------------------
+
++-----------------+----------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+------------------+----------------+
+|   Clock Signal  |                    Enable Signal                   |                                                                     Set/Reset Signal                                                                     | Slice Load Count | Bel Load Count |
++-----------------+----------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+------------------+----------------+
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/FMA_OP.OP/addsub/add/ALIGN_BLK/aligner.ALIGN_SHIFT/ALIGN_SHIFT/MUX_LOOP[1].SKEW_DIST_DEL.DEL_DIST/i_pipe/opt_has_pipe.first_q_reg[0]_0 |                1 |              4 |
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/FMA_OP.OP/addsub/add/NORM/LZE/ENCODE[0].MUX_Z/OP_DEL/i_pipe/first_q[1]                                                                 |                1 |              4 |
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/FMA_OP.OP/addsub/add/NORM/LZE/ENCODE[0].MUX_Z/OP_DEL/i_pipe/opt_has_pipe.first_q_reg[0]_0                                              |                1 |              4 |
+|  aclk_IBUF_BUFG |                                                    | PE/SR                                                                                                                                                    |                2 |              5 |
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/FMA_OP.OP/addsub/add/ALIGN_BLK/ABS_DELAY/i_pipe/opt_has_pipe.first_q_reg[5]_0                                                          |                3 |             16 |
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/FMA_OP.OP/addsub/add/ALIGN_BLK/ABS_DELAY/i_pipe/first_q[5]                                                                             |                4 |             16 |
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/FMA_OP.OP/addsub/add/NORM/LZE/ZERO_DET_CC_1/CARRYS_OUT[7]                                                                              |                3 |             16 |
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/FMA_OP.OP/addsub/add/NORM/LZE/ZERO_DET_CC_1/CHAIN_GEN[3].CARRYS_DEL.NEED_DEL.CARRYS_FD_0                                               |                2 |             16 |
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/sclr_i                                                                                                                                 |                5 |             16 |
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/FMA_OP.OP/addsub/add/EXP/conv_exp.downsize_exp/FLOW_REQ.EXP_NE.FLOW_DELAY/i_pipe/opt_has_pipe.first_q_reg[3]_1                         |                5 |             22 |
+|  aclk_IBUF_BUFG | PE/state_reg[2]_25                                 | counter_reset                                                                                                                                            |               13 |             31 |
+|  aclk_IBUF_BUFG | PE/UUT/U0/i_synth/i_nd_to_rdy/m_axis_result_tvalid | PE/SR                                                                                                                                                    |                8 |             32 |
+|  aclk_IBUF_BUFG | PE/p_1_in                                          | PE/SR                                                                                                                                                    |                7 |             32 |
+|  aclk_IBUF_BUFG |                                                    | PE/UUT/U0/i_synth/FMA_OP.OP/addsub/add/zero_largest                                                                                                      |               12 |             47 |
+|  aclk_IBUF_BUFG |                                                    |                                                                                                                                                          |              216 |           1000 |
++-----------------+----------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------+------------------+----------------+
+
+

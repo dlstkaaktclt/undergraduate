@@ -1,0 +1,14 @@
+# compile verilog/system verilog design source files
+verilog xil_defaultlib  \
+"../../../../lab5.srcs/sources_1/new/my_pe.v" \
+"../../../../lab5.srcs/sources_1/new/my_bram.v" \
+"../../../../lab5.srcs/sim_1/new/tb_bram.v" \
+"../../../../lab5.srcs/sim_1/new/tb_gen_input.v" \
+"../../../../lab5.srcs/sim_1/new/tb_pe.v" \
+"../../../../lab5.srcs/sim_1/new/tb_module.v" \
+
+# compile glbl module
+verilog xil_defaultlib "glbl.v"
+
+# Do not sort compile order
+nosort

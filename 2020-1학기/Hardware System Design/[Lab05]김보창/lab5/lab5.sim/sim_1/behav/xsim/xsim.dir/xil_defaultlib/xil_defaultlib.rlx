@@ -1,0 +1,13 @@
+0.6
+2018.3
+Dec  7 2018
+00:33:28
+C:/Users/plantain/Desktop/hsd/lab5/lab5.sim/sim_1/behav/xsim/glbl.v,1544155481,verilog,,,,glbl,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sim_1/new/tb_bram.v,1586579798,verilog,,C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sim_1/new/tb_gen_input.v,,tb_bram,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sim_1/new/tb_gen_input.v,1586577909,verilog,,C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sim_1/new/tb_pe.v,,tb_gen_input,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sim_1/new/tb_module.v,1586596245,verilog,,,,tb_module,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sim_1/new/tb_pe.v,1586587270,verilog,,C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sim_1/new/tb_module.v,,tb_pe,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sources_1/ip/fused_mult/demo_tb/tb_fused_mult.vhd,1586516525,vhdl,,,,tb_fused_mult,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sources_1/ip/fused_mult/sim/fused_mult.vhd,1586516524,vhdl,C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sources_1/ip/fused_mult/demo_tb/tb_fused_mult.vhd,,,fused_mult,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sources_1/new/my_bram.v,1586596631,verilog,,C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sim_1/new/tb_bram.v,,my_bram,,,,,,,,
+C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sources_1/new/my_pe.v,1586590319,verilog,,C:/Users/plantain/Desktop/hsd/lab5/lab5.srcs/sources_1/new/my_bram.v,,my_pe,,,,,,,,
